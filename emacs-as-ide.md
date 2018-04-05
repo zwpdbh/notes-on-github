@@ -2,27 +2,27 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#sec-1">1. Emacs as Java IDE</a>
+<li><a href="#sec-1">Emacs as Java IDE</a>
 <ul>
-<li><a href="#sec-1-1">1.1. Outline</a></li>
-<li><a href="#sec-1-2">1.2. Basic Environment</a>
+<li><a href="#sec-1-1">Outline</a></li>
+<li><a href="#sec-1-2">Basic Environment</a>
 <ul>
-<li><a href="#sec-1-2-1">1.2.1. About Eclim</a></li>
-<li><a href="#sec-1-2-2">1.2.2. Install</a></li>
-<li><a href="#sec-1-2-3">1.2.3. Running the server</a></li>
-<li><a href="#sec-1-2-4">1.2.4. Projects</a></li>
+<li><a href="#sec-1-2-1">About Eclim</a></li>
+<li><a href="#sec-1-2-2">Install</a></li>
+<li><a href="#sec-1-2-3">Running the server</a></li>
+<li><a href="#sec-1-2-4">Projects</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-3">1.3. Compiling</a>
+<li><a href="#sec-1-3">Compiling</a>
 <ul>
-<li><a href="#sec-1-3-1">1.3.1. Setting up Gradle</a></li>
-<li><a href="#sec-1-3-2">1.3.2. Using Gradle</a></li>
-<li><a href="#sec-1-3-3">1.3.3. Example</a></li>
+<li><a href="#sec-1-3-1">Setting up Gradle</a></li>
+<li><a href="#sec-1-3-2">Using Gradle</a></li>
+<li><a href="#sec-1-3-3">Example</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-4">1.4. Autocomplete</a></li>
-<li><a href="#sec-1-5">1.5. Syntax-checking</a></li>
-<li><a href="#sec-1-6">1.6. Refactoring</a></li>
+<li><a href="#sec-1-4">Autocomplete</a></li>
+<li><a href="#sec-1-5">Syntax-checking</a></li>
+<li><a href="#sec-1-6">Refactoring</a></li>
 </ul>
 </li>
 </ul>
@@ -47,7 +47,7 @@ referenced from [Setting up Emacs for Java Development](http://www.goldsborough.
 
 ### Install<a id="sec-1-2-2" name="sec-1-2-2"></a>
 
-1.  Eclipse
+-   Eclipse
 
         brew install caskroom/cask/brew-cask 2> /dev/null
         
@@ -61,7 +61,7 @@ referenced from [Setting up Emacs for Java Development](http://www.goldsborough.
     
     Or, install eclipse using GUI installer.
 
-2.  eclim
+-   eclim
 
     1.  Download [eclim<sub>xx</sub>.bin](https://github.com/ervandew/eclim/releases/download/2.7.2/eclim_2.7.2.bin)
     2.  execute the installer:
@@ -88,7 +88,7 @@ referenced from [Setting up Emacs for Java Development](http://www.goldsborough.
     
         /Applications/Eclipse.app/Contents/Eclipse/eclimd
 
-3.  emacs-eclim
+-   emacs-eclim
 
         (use-package eclim
           :ensure t

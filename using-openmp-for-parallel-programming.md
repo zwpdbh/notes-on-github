@@ -2,68 +2,68 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#sec-1">1. Chapter04 OpenMP Language Features</a>
+<li><a href="#sec-1">Chapter04 OpenMP Language Features</a>
 <ul>
-<li><a href="#sec-1-1">1.1. 4.1 Introduction</a>
+<li><a href="#sec-1-1">4.1 Introduction</a>
 <ul>
-<li><a href="#sec-1-1-1">1.1.1. Most commonly used features of the OpenMP library routines:</a></li>
-<li><a href="#sec-1-1-2">1.1.2. Features enable the programmer to orchestrate the actions of different threads (4.6)</a></li>
+<li><a href="#sec-1-1-1">Most commonly used features of the OpenMP library routines:</a></li>
+<li><a href="#sec-1-1-2">Features enable the programmer to orchestrate the actions of different threads (4.6)</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-2">1.2. 4.2 Terminology</a></li>
-<li><a href="#sec-1-3">1.3. 4.3 Parallel Construct</a></li>
-<li><a href="#sec-1-4">1.4. 4.4 Sharing the Work among Threads in an OpenMP Program</a>
+<li><a href="#sec-1-2">4.2 Terminology</a></li>
+<li><a href="#sec-1-3">4.3 Parallel Construct</a></li>
+<li><a href="#sec-1-4">4.4 Sharing the Work among Threads in an OpenMP Program</a>
 <ul>
-<li><a href="#sec-1-4-1">1.4.1. 4.4.1 Loop Construct</a></li>
-<li><a href="#sec-1-4-2">1.4.2. 4.4.2 The Section Construct</a></li>
-<li><a href="#sec-1-4-3">1.4.3. 4.4.3 The Single Construct</a></li>
-<li><a href="#sec-1-4-4">1.4.4. 4.4.4 Workshare Construct</a></li>
-<li><a href="#sec-1-4-5">1.4.5. 4.4.5 Combined Parallel Work-sharing Construct</a></li>
+<li><a href="#sec-1-4-1">4.4.1 Loop Construct</a></li>
+<li><a href="#sec-1-4-2">4.4.2 The Section Construct</a></li>
+<li><a href="#sec-1-4-3">4.4.3 The Single Construct</a></li>
+<li><a href="#sec-1-4-4">4.4.4 Workshare Construct</a></li>
+<li><a href="#sec-1-4-5">4.4.5 Combined Parallel Work-sharing Construct</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-5">1.5. 4.5 Clauses to Control Parallel and Work-sharing Construct</a>
+<li><a href="#sec-1-5">4.5 Clauses to Control Parallel and Work-sharing Construct</a>
 <ul>
-<li><a href="#sec-1-5-1">1.5.1. 4.5.1 Shared Clause</a></li>
-<li><a href="#sec-1-5-2">1.5.2. 4.5.2 Private Clause</a></li>
-<li><a href="#sec-1-5-3">1.5.3. 4.5.3 Lastprivate Clause</a></li>
-<li><a href="#sec-1-5-4">1.5.4. 4.5.4 Fristprivate Clause</a></li>
-<li><a href="#sec-1-5-5">1.5.5. 4.5.5 Default Clause</a></li>
-<li><a href="#sec-1-5-6">1.5.6. 4.5.6 Nowait Clause</a></li>
-<li><a href="#sec-1-5-7">1.5.7. 4.5.7 Schedule Clause</a></li>
+<li><a href="#sec-1-5-1">4.5.1 Shared Clause</a></li>
+<li><a href="#sec-1-5-2">4.5.2 Private Clause</a></li>
+<li><a href="#sec-1-5-3">4.5.3 Lastprivate Clause</a></li>
+<li><a href="#sec-1-5-4">4.5.4 Fristprivate Clause</a></li>
+<li><a href="#sec-1-5-5">4.5.5 Default Clause</a></li>
+<li><a href="#sec-1-5-6">4.5.6 Nowait Clause</a></li>
+<li><a href="#sec-1-5-7">4.5.7 Schedule Clause</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-6">1.6. 4.6 OpenMP Synchronization Construct</a>
+<li><a href="#sec-1-6">4.6 OpenMP Synchronization Construct</a>
 <ul>
-<li><a href="#sec-1-6-1">1.6.1. 4.6.1 Barrier Construct</a></li>
-<li><a href="#sec-1-6-2">1.6.2. 4.6.2 Ordered Construct</a></li>
-<li><a href="#sec-1-6-3">1.6.3. 4.6.3 Critical Construct</a></li>
-<li><a href="#sec-1-6-4">1.6.4. 4.6.4 Atomic Construct</a></li>
-<li><a href="#sec-1-6-5">1.6.5. 4.6.5 Locks</a></li>
-<li><a href="#sec-1-6-6">1.6.6. 4.6.6 Master Construct</a></li>
+<li><a href="#sec-1-6-1">4.6.1 Barrier Construct</a></li>
+<li><a href="#sec-1-6-2">4.6.2 Ordered Construct</a></li>
+<li><a href="#sec-1-6-3">4.6.3 Critical Construct</a></li>
+<li><a href="#sec-1-6-4">4.6.4 Atomic Construct</a></li>
+<li><a href="#sec-1-6-5">4.6.5 Locks</a></li>
+<li><a href="#sec-1-6-6">4.6.6 Master Construct</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-7">1.7. 4.7 Interaction with the Execuation Environment</a></li>
-<li><a href="#sec-1-8">1.8. 4.8 More OpenMP Clauses</a>
+<li><a href="#sec-1-7">4.7 Interaction with the Execuation Environment</a></li>
+<li><a href="#sec-1-8">4.8 More OpenMP Clauses</a>
 <ul>
-<li><a href="#sec-1-8-1">1.8.1. 4.8.1 If Clause</a></li>
-<li><a href="#sec-1-8-2">1.8.2. 4.8.2 Num<sub>threads</sub> Clause</a></li>
-<li><a href="#sec-1-8-3">1.8.3. 4.8.3 Ordered Clause</a></li>
-<li><a href="#sec-1-8-4">1.8.4. 4.8.4 Reduction Clause</a></li>
-<li><a href="#sec-1-8-5">1.8.5. 4.8.5 Copying Clause</a></li>
-<li><a href="#sec-1-8-6">1.8.6. 4.8.6 Copyprivate Cluase</a></li>
+<li><a href="#sec-1-8-1">4.8.1 If Clause</a></li>
+<li><a href="#sec-1-8-2">4.8.2 Num<sub>threads</sub> Clause</a></li>
+<li><a href="#sec-1-8-3">4.8.3 Ordered Clause</a></li>
+<li><a href="#sec-1-8-4">4.8.4 Reduction Clause</a></li>
+<li><a href="#sec-1-8-5">4.8.5 Copying Clause</a></li>
+<li><a href="#sec-1-8-6">4.8.6 Copyprivate Cluase</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-9">1.9. 4.9 Advanced OpenMP Construct</a>
+<li><a href="#sec-1-9">4.9 Advanced OpenMP Construct</a>
 <ul>
-<li><a href="#sec-1-9-1">1.9.1. 4.9.1 Nested Parallelism</a></li>
-<li><a href="#sec-1-9-2">1.9.2. 4.9.2 Flush Directive</a></li>
-<li><a href="#sec-1-9-3">1.9.3. 4.9.3 Threadprivate Directive</a></li>
+<li><a href="#sec-1-9-1">4.9.1 Nested Parallelism</a></li>
+<li><a href="#sec-1-9-2">4.9.2 Flush Directive</a></li>
+<li><a href="#sec-1-9-3">4.9.3 Threadprivate Directive</a></li>
 </ul>
 </li>
-<li><a href="#sec-1-10">1.10. Summary</a></li>
+<li><a href="#sec-1-10">Summary</a></li>
 </ul>
 </li>
-<li><a href="#sec-2">2. Chapter05 How to Get Good Performance by Using OpenMP</a></li>
+<li><a href="#sec-2">Chapter05 How to Get Good Performance by Using OpenMP</a></li>
 </ul>
 </div>
 </div>
@@ -74,28 +74,28 @@
 
 ### Most commonly used features of the OpenMP library routines:<a id="sec-1-1-1" name="sec-1-1-1"></a>
 
-1.  Parallel Construct
+-   Parallel Construct
 
-2.  Work-sharing Construct
+-   Work-sharing Construct
 
     1.  Loop Construct
     2.  Section Construct
     3.  Single COnstruct
     4.  Workshare Construct(Fortran only)
 
-3.  Data-sharing, No Wait, and Schedule Clauses (see [OpenMP Clauses](https://msdn.microsoft.com/en-us/library/2kwb957d.aspx))
+-   Data-sharing, No Wait, and Schedule Clauses (see [OpenMP Clauses](https://msdn.microsoft.com/en-us/library/2kwb957d.aspx))
 
 ### Features enable the programmer to orchestrate the actions of different threads (4.6)<a id="sec-1-1-2" name="sec-1-1-2"></a>
 
-1.  Barrier Construct
+-   Barrier Construct
 
-2.  Critical Construct
+-   Critical Construct
 
-3.  Atomic Construct
+-   Atomic Construct
 
-4.  Locks
+-   Locks
 
-5.  Master Construct
+-   Master Construct
 
 ## 4.2 Terminology<a id="sec-1-2" name="sec-1-2"></a>
 
@@ -156,7 +156,7 @@ Two main rules regarding work-sharing construct are as follow:
 -   At run time, the specified code blocks are executed by the threads in the team. Each thread executes one code block at a time, and each code block will be executed exactly once.
 -   The most common use is to execute function or subroutine calls in parallel.
 
-1.  Example of parallel sections
+-   Example of parallel sections
 
         #pragma omp parallel
         {
@@ -262,8 +262,7 @@ The private data is also undefined on entry to the construct where it is specifi
     for(i=0; i<vlen; i++) a[i] = -i-1;
     
     indx = 4;
-    #pragma omp parallel default(none) firstprivate(indx)   \
-      private(i,TID) shared(n,a)
+    #pragma omp parallel default(none) firstprivate(indx) private(i,TID) shared(n,a)
     TID = omp_get_thread_num();
     
     indx += n*TID;
@@ -324,7 +323,7 @@ The `schedule` clause is supported on the loop construct only. It is used to con
 
 -   Syntax is `schedule(kind [, chunk_size])`.
 
-1.  schedule kinds could be:
+-   schedule kinds could be:
 
     -   static
         Iterations are divided into chunks of size `chunk_size`, the `chunk_size` need not be a constant. It is the most efficient from a performance point of view, others have high overheads.
@@ -501,7 +500,7 @@ And `barrier` needs to be inserted for correctness.
 
 There are variables that could be queried or modified in the OpenMP environment.
 
-1.  Internal control variables. They could not be accessed or modified directly at application level, but could be queried and modified through OpenMP functions and environment variables.
+-   Internal control variables. They could not be accessed or modified directly at application level, but could be queried and modified through OpenMP functions and environment variables.
 
     -   nthreads-var
     -   dyn-var
@@ -511,28 +510,28 @@ There are variables that could be queried or modified in the OpenMP environment.
     
     To control those variable, `need` include `omp.h` header file:
 
-2.  Control the number of threads in a parallel region by setting value `nthread-var`.
+-   Control the number of threads in a parallel region by setting value `nthread-var`.
 
     -   `OMP_NUM_THREADS`, used at command-line
     -   `omp_set_num_threads`, used as `omp_set_num_threads(scalar-integer-expression)`.
     -   `num-threads`, used together with a prallel construct.
     -   `omp_get_max_threads()` routine, returns the largest number of threads available for the next parallel region.
 
-3.  Optimize the use of system resources for thoughout by controling the value of `dyn-var`:
+-   Optimize the use of system resources for thoughout by controling the value of `dyn-var`:
 
     -   `OMP_DYNAMIC(flay)`, flag could be `true` or `false`.
     -   `omp_set_dynamic`, adjusts the value of `dyn-var` at run time. `omp_get_dynamic` can be used to retrieve the current setting at run time.
 
-4.  Set if the execution of parallel is nested or not via variable `nest-var`
+-   Set if the execution of parallel is nested or not via variable `nest-var`
 
     -   `OMP_NESTED`
     -   `omp_set_nested`
 
-5.  Control the default schedule to be applied to parallel loops in a program
+-   Control the default schedule to be applied to parallel loops in a program
 
     -   its value decide the manner when schedule type is `runtime`.
 
-6.  Other useful library routines:
+-   Other useful library routines:
 
     -   `omp_get_num_threads`, retrieve the number of threads in the current team
     -   `omp_get_thread_num`, returns the number of the calling thread as an integer value.
@@ -606,7 +605,7 @@ OpenMP provides the `reduction` clause for specifying some forms of recurrence c
 -   specify that `sum` will hold the result of a Reduction
 -   identified via the `+` operator.
 
-1.  Things need to be noticed when using with C++
+-   Things need to be noticed when using with C++
 
     -   Aggregate types (including arrays), pointer types, and reference types are not supported.
     -   A reduction variable must not be const-qualified.
