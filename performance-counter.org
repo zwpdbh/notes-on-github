@@ -1,0 +1,419 @@
+* Performance monitor on AMD
+** pmc_profiler
+*** source code of pmc.c
+A piece of code which,
+#+BEGIN_SRC C
+  #define _GNU_SOURCE
+  #define _POSIX_C_SOURCE 1
+  #define _XOPEN_SOURCE
+  #define _POSIX_SOURCE
+
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <stdint.h>
+  #include <string.h>
+  #include <unistd.h>
+  #include <sys/syscall.h>
+  #include <sys/types.h>
+  #include <sys/wait.h>
+  #include <signal.h>
+  #include <sched.h>
+  #include <errno.h>
+  #include "glib.h"
+  #include "glib-unix.h"
+
+  #define N 64
+  #define MAXLINELEN 1024
+  #define PIPE_FILENO 3
+  #define MAX_PMC_REC 128
+  int pid_record[N], app_pid;
+  int cid;
+  unsigned cpu_id, node_id;
+  cpu_set_t mask;
+  sigset_t sig_mask;
+  struct sigaction pmc_act;
+  char buf[MAXLINELEN];
+  unsigned long pmc_readings[6][MAX_PMC_REC];
+  int pmc_reading_count = 0;
+  int app_finished = 0;
+
+  inline uint64_t read_pmc(unsigned int n) {
+    unsigned int a, d, c;
+    c = n;
+    __asm __volatile("rdpmc" : "=a" (a), "=d" (d) : "c" (c));
+    return ((unsigned long) a) | (((unsigned long) d) << 32);
+  }
+
+  void sigchld_app(int signo) {
+    unsigned int pid;
+    int state;
+
+    while ((pid = waitpid(-1, &state, WNOHANG)) > 0) {
+      if (pid == app_pid) {
+        app_finished++;
+        //fprintf(stderr, "The application with pid %d is terminated\n", app_pid);
+      } else if (!app_finished) fprintf(stderr, "A child process is unexpectedly terminated\n");
+      else {
+        app_finished++;
+        if (app_finished == N) exit(0);
+      }
+    }
+    return;
+  }
+
+  void pmc_event(int signo) {
+    unsigned long tmp;
+    int i;
+
+    //fprintf(stderr, "Received signal #%d in child %d\n", signo, cid);
+    /* read pmc counters here */
+    if (signo == SIGUSR1) {
+      if (pmc_reading_count >= MAX_PMC_REC)
+        fprintf(stderr, "pmc_readings is full!!!\n");
+      tmp = pmc_readings[0][pmc_reading_count++] = read_pmc(0);
+      //printf("%ld from child %d\n", tmp, cid);
+    } else if (signo == SIGUSR2) {
+      printf("Process %d readings: ", cid);
+      for (i = 0; i < pmc_reading_count; i++) printf("%ld ", pmc_readings[0][i]);
+      printf("\n");
+      if (cid != 0) exit(0);
+    }
+
+    return;
+
+  }
+
+  void do_parent() {
+    pmc_act.sa_handler = SIG_IGN;
+    sigemptyset(&pmc_act.sa_mask);
+    pmc_act.sa_flags = 0;
+    if (sigaction(SIGUSR1, &pmc_act, 0) < 0) {
+      fprintf(stderr, "Failed installing sig handler for the parent ...\n");
+      exit(1);
+    }
+    if (sigaction(SIGUSR2, &pmc_act, 0) < 0) {
+      fprintf(stderr, "Failed installing sig handler for the parent ...\n");
+      exit(1);
+    }
+
+  }
+
+
+  void do_parent_again() {
+    CPU_ZERO(&mask);
+    CPU_SET(0, &mask);
+    if (sched_setaffinity(0, sizeof(mask), &mask)) {
+      fprintf(stderr, "Failed pinning process on CPU %d ...\n", 0);
+      exit(1);
+    }
+
+    pmc_act.sa_handler = pmc_event;
+    sigemptyset(&pmc_act.sa_mask);
+    sigaddset(&pmc_act.sa_mask, SIGUSR2);
+    sigaddset(&pmc_act.sa_mask, SIGCHLD);
+    pmc_act.sa_flags = 0;
+    if (sigaction(SIGUSR1, &pmc_act, 0) < 0) {
+      fprintf(stderr, "Failed installing sig handler for the parent ...\n");
+      exit(1);
+    }
+
+    sigemptyset(&pmc_act.sa_mask);
+    sigaddset(&pmc_act.sa_mask, SIGUSR1);
+    sigaddset(&pmc_act.sa_mask, SIGCHLD);
+    if (sigaction(SIGUSR2, &pmc_act, 0) < 0) {
+      fprintf(stderr, "Failed installing sig handler for the parent ...\n");
+      exit(1);
+    }
+
+    sigemptyset(&pmc_act.sa_mask);
+    sigaddset(&pmc_act.sa_mask, SIGUSR1);
+    sigaddset(&pmc_act.sa_mask, SIGUSR2);
+    pmc_act.sa_handler = sigchld_app;
+    if (sigaction(SIGCHLD, &pmc_act, 0) < 0) {
+      fprintf(stderr, "Failed installing sig handler for the parent ...\n");
+      exit(1);
+    }
+
+    cid = 0;
+    cpu_id = sched_getcpu();
+    fprintf(stderr, "Parent is on %d of node %d\n", cpu_id, node_id);
+  }
+
+  void do_child(int cn) {
+    CPU_ZERO(&mask);
+    CPU_SET(cn, &mask);
+    if (sched_setaffinity(0, sizeof(mask), &mask)) {
+      fprintf(stderr, "Failed pinning process on CPU %d ...\n", cn);
+      exit(1);
+    }
+
+    pmc_act.sa_handler = pmc_event;
+    sigemptyset(&pmc_act.sa_mask);
+    sigaddset(&pmc_act.sa_mask, SIGUSR2);
+    pmc_act.sa_flags = 0;
+    if (sigaction(SIGUSR1, &pmc_act, NULL) < 0) {
+      fprintf(stderr, "Failed installing sig handler for child %d ...\n", cn);
+      exit(1);
+    }
+    sigemptyset(&pmc_act.sa_mask);
+    sigaddset(&pmc_act.sa_mask, SIGUSR1);
+    if (sigaction(SIGUSR2, &pmc_act, NULL) < 0) {
+      fprintf(stderr, "Failed installing sig handler for child %d ...\n", cn);
+      exit(1);
+    }
+
+    cid = cn;
+    //if(syscall(SYS_getcpu, &cpu_id, &node_id, NULL) < 0)
+    //perror("getcpu");
+    cpu_id = sched_getcpu();
+    fprintf(stderr, "Child %d is on %d of node %d\n", cid, cpu_id, node_id);
+
+    sigemptyset(&sig_mask);
+    for (;;) {
+      sigsuspend(&sig_mask);
+    }
+  }
+
+
+  main(int argc, char **argv) {
+    char **argvp;
+    int i, pid, cmd_pipe[2], n;
+    FILE *fp;
+
+    if (argc < 2) {
+      fprintf(stderr, "Usage: pmc_profiler <prog> <args>\n");
+      exit(1);
+    }
+
+    for (i = 1; i < N; i++) {
+      /**if it is the child_process, do_child*/
+      if ((pid = fork()) == 0) do_child(i);
+      else if (pid < 0) perror("Fork Error");
+      /**if it is the parent process, record down the pid*/
+      else pid_record[i] = pid;
+      /**Does this mean the pid_record[] records all the same pid of parent process which is the current main process?*/
+    }
+
+    do_parent();
+    /**usually after using pipe, use fork to create child to form the pipe from parent to child
+     ,* To form the IPC from parent to child, close cmd_pipe[0] in parent process, the read end
+     ,* while closing cmd_pipe[1] in child process, the write end
+     ,*
+     ,* To form the IPC from child to parent, close cmd_pipe[1] in parent process, and the child process close cmd_pipe[0].
+     ,*/
+    if (pipe(cmd_pipe) < 0) perror("Command Pipe Error");
+    if ((pid = fork()) < 0)
+      perror("Fork Error");
+    else if (pid > 0) { 
+      /**The following action is happend in the parent process*/
+      app_pid = pid; /* remember the application process id */
+      close(cmd_pipe[1]); /* close write end */
+      /**Since in parent we close the writing end from parent, the pipe is from child to parent*/
+
+      do_parent_again();
+      //sleep(1);
+      for (;;) {
+        if ((n = read(cmd_pipe[0], buf, 18)) > 0) {
+          if (n == 18) buf[18] = 0;
+          if (strcmp(buf, "PMC_CMD: read_pmc\n") == 0) kill(0, SIGUSR1);
+          else printf("%s", buf);
+        } else if (app_finished) {
+          //sleep(1);
+          kill(0, SIGUSR2);
+          break;
+        }
+
+      }
+      while (1) sigsuspend(&sig_mask);
+    } else {
+      close(cmd_pipe[0]); /* close read end */
+      if (cmd_pipe[1] != STDOUT_FILENO) {
+        if (dup2(cmd_pipe[1], PIPE_FILENO) != PIPE_FILENO)
+          perror("dup2 error");
+        close(cmd_pipe[1]);
+      }
+      //fprintf(stderr, "argc=%d argv[1]=%s\n", argc, argv[1]);
+      argvp = malloc((argc - 1) * sizeof(char *));
+      for (i = 1; i < argc; i++) argvp[i - 1] = argv[i];
+      if (execvp(argv[1], argvp) < 0) perror(NULL);
+    }
+
+  }
+
+#+END_SRC
+*** notes about pmc.c 
+**** Read performance counter 
+#+BEGIN_SRC C
+  inline uint64_t read_pmc(unsigned int n) {
+    unsigned int a, d, c;
+    c = n;
+    __asm __volatile("rdpmc" : "=a" (a), "=d" (d) : "c" (c));
+    return ((unsigned long) a) | (((unsigned long) d) << 32);
+  }
+#+END_SRC
+**** About signal
+#+BEGIN_SRC C
+  void do_parent() {
+    pmc_act.sa_handler = SIG_IGN;
+    sigemptyset(&pmc_act.sa_mask);
+    pmc_act.sa_flags = 0;
+    if (sigaction(SIGUSR1, &pmc_act, 0) < 0) {
+      fprintf(stderr, "Failed installing sig handler for the parent ...\n");
+      exit(1);
+    }
+    if (sigaction(SIGUSR2, &pmc_act, 0) < 0) {
+      fprintf(stderr, "Failed installing sig handler for the parent ...\n");
+      exit(1);
+    }
+
+  }
+#+END_SRC
+- ~pmc_act~ is type ~struct sigaction~; see Advanced Unix programming chapter 10, Signals.
+- Signals are software interrupts, provide a way of handling asynchronous event.
+- The process can't simply test a variable to see whether a signal has occured; instead, the process has to tell the kernel: "if and when this signal ocurs, do the following". We can tell the kernel to do the following actions:
+  1) Ignore the signal, expect ~SIGKILL~ and ~SIGSTOP~.
+  2) Catch the signal. Tell the kernel to call a function of ours whenever the signal occurs.
+  3) Let the default action apply.
+***** signal function
+#+BEGIN_SRC c
+  #include <signal.h>
+  void (*signal(int signo, void (*func)(int)))(int);
+#+END_SRC
+  1) first argument, ~signo~, an integer, is the name of the signal.
+  2) second argument is a pointer to a function, the signal handler.
+  3) This declaration says that the signal handler is a passed a signal integer argument (the signal number) and that it is returns nothing. When we call signal to establish the signal handler, the second argument is a pointer to the function. The return value from signal is the pointer to the previous signal handler.
+  4) We can simplify the form use:
+     ~typedef void sigfunc(int);~
+     Then the prototype becomes
+     ~sigfunc *signal(int, sigfunc *);~
+  5) Returns: previous disposition of signal if OK, ~SIG_ERR~ on error.
+***** Signal sets
+  data type ~sigset_t~ contain a signal set which tell the kernel *not* to allow any of the signals in the set to occur.
+***** sigaction Fuction
+It allows us to examine or modify (or both) the action associated with a pariticular signal.
+#+BEGIN_SRC c
+  #include <signal.h>
+  int sigaction(int signo, const struct sigaction *restrict act,
+                struct sigaction *restrict oact);
+#+END_SRC
+  1) ~signo~ is the signal number whose action we are examining or modifying.
+  2) ~struct sigaction~
+     #+BEGIN_SRC C
+       struct sigaction {
+         void     (*sa_handler)(int);  /* addr of signal handler, */
+         /* or SIG_IGN, or SIG_DFL */
+         sigset_t sa_mask;             /* additional signals to block */
+         int      sa_flags;            /* signal options, Figure 10.16 */
+         /* alternate handler */
+         void     (*sa_sigaction)(int, siginfo_t *, void *);
+       };
+     #+END_SRC
+     - if and when the signal catching function returns, the signal mask of the process is reset to its previous value. This way, we are able to block certain signals whenever a signal handler is invoked.
+     - The operating system includes the signal being delivered in the signal mask when the handler is invoked. Hence, we are guaranteed that whenever we are processing a given signal, another occurrence of that same signal is blocked until we're finished processing the first occurrence.
+     - Once we install an action for a given signal, that action remains installed until we explicitly change it by calling ~sigaction~.
+     - ~sa_flags~ fields specifies various options for the handling of this signals.
+**** About IPC using pipe
+(see Advanced programming in the UNIX Environment 15.2)
+Relative code:
+#+BEGIN_SRC c
+  if (pipe(cmd_pipe) < 0) perror("Command Pipe Error");
+  if ((pid = fork()) < 0)
+    perror("Fork Error");
+   else if (pid > 0) { 
+     /**The following action is happend in the parent process*/
+     app_pid = pid; /* remember the application process id */
+     close(cmd_pipe[1]); /* close write end */
+     /**Since in parent we close the writing end from parent, the pipe is from child to parent*/
+
+     do_parent_again();
+     //sleep(1);
+     for (;;) {
+       if ((n = read(cmd_pipe[0], buf, 18)) > 0) {
+         if (n == 18) buf[18] = 0;
+         if (strcmp(buf, "PMC_CMD: read_pmc\n") == 0) kill(0, SIGUSR1);
+         else printf("%s", buf);
+       } else if (app_finished) {
+         //sleep(1);
+         kill(0, SIGUSR2);
+         break;
+       }
+
+     }
+     while (1) sigsuspend(&sig_mask);
+   } else {
+     close(cmd_pipe[0]); /* close read end */
+     if (cmd_pipe[1] != STDOUT_FILENO) {
+       if (dup2(cmd_pipe[1], PIPE_FILENO) != PIPE_FILENO)
+         perror("dup2 error");
+       close(cmd_pipe[1]);
+     }
+     //fprintf(stderr, "argc=%d argv[1]=%s\n", argc, argv[1]);
+     argvp = malloc((argc - 1) * sizeof(char *));
+     for (i = 1; i < argc; i++) argvp[i - 1] = argv[i];
+     if (execvp(argv[1], argvp) < 0) perror(NULL);
+   }
+
+#+END_SRC
+***** pipe(cmd_pipe)  
+*** functions need to know
+**** Executing a file as a process image
+#+BEGIN_SRC c
+   else {
+     close(cmd_pipe[0]); /* close read end */
+     if (cmd_pipe[1] != STDOUT_FILENO) {
+       if (dup2(cmd_pipe[1], PIPE_FILENO) != PIPE_FILENO)
+         perror("dup2 error");
+       close(cmd_pipe[1]);
+     }
+     //fprintf(stderr, "argc=%d argv[1]=%s\n", argc, argv[1]);
+     argvp = malloc((argc - 1) * sizeof(char *));
+     for (i = 1; i < argc; i++) argvp[i - 1] = argv[i];
+     if (execvp(argv[1], argvp) < 0) perror(NULL);
+   }
+#+END_SRC
+- ~exec~ family of functions for [[https://www.gnu.org/software/libc/manual/html_node/Executing-a-File.html#Executing-a-File][executing a file as process image]]. You could use these functions to make a child process execute a new program after it has been forked:
+  ~int execv(const char *filename, char *const argv[])~
+  1) ~execv~ function executes the file named by filename as a new process image.
+  2) The ~argv~ arguments is an array of null-terminated strings that is used to provide a value for the ~argv~ argument to the main function of the program to be executed. The last element of this array must a null pointer.
+- [[https://www.gnu.org/software/libc/manual/html_node/Duplicating-Descriptors.html][duplicating descriptors]]
+  1) The major use of duplicating a file descriptor is to implement /redirection/ of input or output: that is, to change the file or pipe that a prticular file descriptor corresponds to.
+  2) ~int dup2(int old, int new)~
+     - it closes new, duplicate old to new.
+     - for example:suppose newfd is a valid file descriptor created by ~open()~:
+       #+BEGIN_SRC c
+         dup2(newfd, 1)
+         printf("This goes to the standard output too.\n");
+       #+END_SRC
+       This will make new stdout descriptor == ~newfd~, so the printf will redirect the content into the stdout which currently is ~
+**** Process completion
+#+BEGIN_SRC c
+  void sigchld_app(int signo) {
+    unsigned int pid;
+    int state;
+
+    while ((pid = waitpid(-1, &state, WNOHANG)) > 0) {
+      if (pid == app_pid) {
+        app_finished++;
+        //fprintf(stderr, "The application with pid %d is terminated\n", app_pid);
+      } else if (!app_finished) fprintf(stderr, "A child process is unexpectedly terminated\n");
+      else {
+        app_finished++;
+        if (app_finished == N) exit(0);
+      }
+    }
+    return;
+  }
+#+END_SRC
+- read reference: GNU C library process completion
+- The ~waitpid~ function is used to request status information from a child process whose process id is ~pid~. Normally, the calling process is suspended until the child process makes status information available by terminating.
+- Other values for the pid argument have special interpretations:
+  - -1 or ~WAIT_ANY~ requests status information for any child process.
+  - 0 or ~WAIT_MYPGRP~ requests information for any child process in the same process group as the calling process.
+  - Any other negative value -- ~pgid~ requests information for any child process whose process group id is ~pgid~.
+- ~state~ is a value which can be analyzed with status analysis macros
+- ~WNOHANG~ means checks child processes without causing the caller to be suspended.
+- The return value is normally the process id of the child process whose status is reported.
+  - If there are child processes but none of them is waiting to be notices, waitpid will be blocked until one is.
+  - However, if the ~WNOHANG~ is given, waitpid will return 0 instead of blocking.
+  - If a specific PID to wait for, was given to ~waitpid~, it will ignore all other children.
+** How to collect performance metrics from ARM?
