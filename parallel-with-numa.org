@@ -1,0 +1,7 @@
+* Extending OpenMp for NUMA machines
+Writing efficient parallel programs for NUMA architectures, which have characteristics of both shared-memory and distributed-memory architectures, requires that a programmer control the placement of data in memory and the placement of computations that operate on that data.
+
+** Introduction
+- The bottleneck: the bandwidth of the connection between processors and the memory they share, limits the scaling of parallel applications.
+- Solution: system partitioned into smaller modules, within each module is a local memory and a small number of processors which have very high speed access to that local memory. The modules are interconnected so each processors can access the memory located in other modules --- there is logically one global memory.
+- Compaq has added a set of directives to its Fortran of Tru64 UNIX that extent the OpenMP Fortran API. The programmer can specify the placement of data and computations onto memories for optimal performance.

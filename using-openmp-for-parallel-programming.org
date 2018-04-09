@@ -517,3 +517,170 @@ By default, the threadprivate copies are not allocated or defined. The programme
 ** Summary 
 
 * Chapter05 How to Get Good Performance by Using OpenMP
+** Performance considerations for sequential programs
+*** Suboptimal usage of the cache memory subsystem
+- cache miss at the highest level in the cache hierarchy is expensive since it implies that data must be fectched from main memory before it can be used.
+*** Memory access patterns and performance
+- A major goal is to organize data accesses so that values are used as often as possible while they are still in cache.
+- The most common strategies for doing so are based on the fact that programming languages typically specify that the elements of arrays be stored contiguously in memory. Thus, if an arry element is fetched into cache, "nearby" elements of the array wil be in the same cache block and will be fetched as part of the same transactions.
+  - rowwise storage, when an array element is transferred to cache, neibhors in the same rwo are typically also transferred as part of the same cache line.
+  - Therefor, matrix-based compuation should access the elements of the array row by row, not column by column.
+*** Translation-Lookaside Buffer (TLB)
+- In fact, the physical pages that are available to a program may be spread out in memory, and so the virtual pages must be mapped to the physical ones. A page table that records this mapping which is used to locate the physical page corresponding to a virtual page when it is referenced during execution. However, the page table resides in main memory, and this procedure is time-consuming.
+- A special cache was developed that stores recently accessed entries in the page table. It is known as TLB.
+- The TLB is on the critical path for performance. Whenever data is needed for a calculation and the information needed to determine its physical location is not in the TLB, the processor waits until the requested information is available. Only then it is able to transfer the values and resume execution.
+- Just as with data cache, it is important to make good use of the TLB entries: a page should be heavily referenced while its location is stored in the TLB. Whenever a program does not access data in storage order, frequent cache reload plus a large number of TLB misses may result.
+
+*** Loop Optimization
+- loop interchange
+  - If any memory location is referenced more than once in the loop nest and if at least one of those references modifies its value, then their relative ordering must not be changed by the transformation.
+- loop unrolling
+  - A short loop nest: loop overheads are relatively high when each interation has small number of operations.
+    #+BEGIN_SRC c
+      for (int i=1; i<n; i++) {
+        a[i] = b[i] + 1;
+        c[i] = a[i] + a[i-1] + b[i-1];
+       }
+    #+END_SRC
+  - An unrolled loop: previous code has been unrolled by a factor of 2 to reduce the loop overheads
+    #+BEGIN_SRC c
+      for (int i=1; i<n; i+=2) {
+        a[i] = b[i] + 1;
+        c[i] = a[i] + a[i-1] + b[i-1];
+        a[i+1] = b[i+1] + 1;
+        c[i+1] = a[i+1] + a[i] + b[i];
+       }
+    #+END_SRC
+    - In this example, the loop body executes 2 iterations in one pass. The number is called "unroll factor". A higher value tends to give better performance but also increase the number of registers needed.
+    - Nowadays, a programmer seldom needs to apply this transformation manually, since compilers are very good at doing this. They are also very good at determining the optimal unroll factor.
+*** Using pointers and contiguous memory in C
+- pointer aliasing problem
+
+** Measuring OpenMP performance
+How to meausre and identify what factors determin overall program performance?
+- Common practice is to use a standard operating system command.
+  #+BEGIN_SRC sh
+    $ /bin/time ./program.exe
+    real   5.4
+    user   3.2
+    sys    1.0
+  #+END_SRC
+  These three numbers can be used to get a first impresstion on the performance.
+  - The first number tells us that the program took 5.4 seconds from beginning to end.
+  - The second number shows it spent 3.2 seconds in user mode; this is the time the program spent executing outside any operating system services.
+  - The third number is the time spent on operating system services, such as input/output routines.
+  - The sum of user and system time is referred to as the /CPU time/.
+  - The "real" time is also referred to as /wall-clock time/ or /elapsed time/.
+  - The difference between the elapsed time and the CPU time is commonly caused by the application did not get a full processor to itself.
+- Parallel overhead
+  - In includes the time to create, start and stop threads, the extra work needed to figure out what each task is to perform, the time spent waiing in barriers and at critical sections and locks, and the time spent computing some operations redundantly.
+*** Understanding the Performance of an OpenMP Program
+The observable performance of OpenMP program is influenced by at least the following factors, in addition to those that play a role in sequential performance:
+- The manner in which memory is accessed by the individual threads.
+- The fraction of the work that is sequential, or replicated.
+- The amount of time spent handling OpenMP constructs.
+- The load imbalance between synchronization points.
+
+*** Overheads of the OpenMP translation
+*** Interaction with execution environment
+On an SMP system we strongly recommend that a program use fewer than the total number of processors, even if the system is dedicated to a single application.
+** Best practices
+*** Optimize barrier use
+*** Avoid the ordered construct
+*** Avoid large critical regions
+*** Maximize parallel regions
+*** Avoid parallel regions in inner loops
+A bad example:
+#+BEGIN_SRC c
+  for (i=0; i<n; i++)
+    for (j=0; j<n; j++)
+  #pragma omp parallel for
+      for (k=0; k<n; k++)
+        { .........}
+#+END_SRC
+A good example:
+#+BEGIN_SRC c
+  #pragma omp parallel
+  for (i=0; i<n; i++)
+    for (j=0; j<n; j++)
+  #pragma omp for
+      for (k=0; k<n; k++)
+        { .........}
+#+END_SRC
+It reduces the overhead of parallel construct.
+
+*** Address poor load balance
+
+** Additional performance considerations
+(read details later)
+** Case study: The matrix times vector product (5.6)
+
+* Using OpenMP in the real world
+** Scalability challenges for OpenMP
+To create a parallel program that scales to a large number of thread, a programmer must carefully consider the nature of the parallelism that can be exploited.
+- Data parallelism 
+  - each thread carries out the same work, but on its own portion of the data set.
+  - synchronization must be inserted to ensure that the correct ordering of accessing is enforced. (suited for computational fluid dynamics code that find the dscrete solution of partial differential equations)
+  - Characteristic is that the same computations are performed on a large number of points of a computational grid.
+- Task parallelism
+  - give the threads different kinds of work to do.
+- OpenMP with NUMA
+  - OpenMP assuems that the cost of acessing a memory location is *uniform* across the system.
+  - Given the large remote-access latencies of there cc-NUMA architectures, obtaining a program with a high level of data locality is potentially the most important challenge for performance.
+
+** Achieving scalability on cc-NUMA architectures
+OpenMP does not provide a direct means of optimizing code for cc-NUMA systems and therefor can only indirectly influence the performance of a program on such a platform.
+
+*** Memory placement and thread binding
+- data allocation, more accurately page allocation is under control of the operating system. On a cc-NUMA architecture, the pages of data belonging to a given program may be distributed across the nodes of the system.
+- First touch policy
+  - the thread initialize a data object gets the page associated with that data item in the memory local to the processor its is currently executing on.
+- Some example scenarios that may lead to inefficient thread and memory placement while an OpenMP code is executed:
+  1) Unwanted thread migration
+  2) The application requires irregular or changing memory access patterns.
+  3) Inefficient thread placement for hybrid codes.
+     Such as the remote memory access to the data of their master threads.
+  4) Changing thread theam compositions in nested OpenMP codes.
+
+** Combining OpenMP and Message Passing
+** Performance analysis of OpenMP programs
+*** Several approaches can be used to obtain performance data
+**** sampling
+- based on periodic clock-based OS interrupts or hardware counter traps, such as the overflow hardware counter registers.
+- At the sampling points, the values of performance data (such as the program counter, the time, call stacks and hardware-counter overflow data) are collected and recorded.
+- Unix ~gprof~ tool.
+**** code instrumentation
+calls to a tracing library are inserted in the code by the programmer, the compiler, or a tool. These library calls will write performance information into a performance profile file during program execution.
+*** Interpreting timing information (6.6.2)
+/pending/
+Timing information can be used to obtain the following metrics:
+1) Parallelization coverage
+2) Useful parallel time
+3) Estimating the parallel efficiency
+4) The workshare duration
+5) Thread synchronization
+6) Load balancing
+7) Work scheduling
+
+*** Using hardware counters
+A small set of counters that are most commonly available and useful to measure.
+**** The /number of executed instructions/ per thread provides various interesting insights. 
+- Comparing this metric between threads can point to a workload imbalance within parallel regions.
+
+**** The number of /instruction per second/ during the thread useful time is an indicator of how well the processor pipeline are being used.
+- If the ratio is low for certain routines, one might want to check whether threads spend their time waiting for work, are waiting in a synchronization phase or waiting for the cache and memory system.
+
+**** The /number of data cache and translation-llokaside buffer (TLB) misses/ 
+- Both provide measures for the efficiency of memory accesses. 
+- Insight is gained by comparing values between threads, observing the behavior over a period of time or by combining the values with other metrics. For example, an interesting statistic is the ratio of cache or TLB misses per instruction. If this ratio is high for certain routines or threads, it is worth trying to change the memory access pattern.
+
+**** The /cost per cache miss/
+- Can provide a measure for *the impact of remote memory access on a cc-NUMA architectures* or DSM system. An estimate of this metric can be obtained by combining the following attributes:
+- elapsed execution time
+- number of instructions executed during the useful parallel time
+- number of millions of instructions per sencond that could be obtained if the cost for a cache miss were zero.
+- number of cache misses that occurred during the useful parallel time.
+
+More interesting than the absolute value of this metric is how it compares between threads. If the cost per cache miss for certain routines varies widely between the threads, some data could be stored in such a way that it causes remote memory access for some threads, thereby increasing the overall execu- tion time. 
+
+
