@@ -1,0 +1,48 @@
+* Parallel implementations of the 3D fast wavelet transform on a Raspberry Pi 2 cluster cite:bernabe16_paral_implem_fast_wavel_trans
+Present and evaluate 3 parallelization strategies of the 3d fast wavelet transform on a cluster of Raspberry Pi 2 SDCs. Using booth pthread and MPI.
+
+** Introduction
+- In this work, they study the parallelization of the 3d fast wavelet transform(3D-FWT) on a cluster of raspberry pi 2 SDC(single-board computer)s. Using pthread and MPI for evaluating 3 different parallelization strategies on a cluster of 4 Pis.
+- Pthread version are restricted to runs on a single boards, and MPI version can span to several Pis.
+- Performance drops when all MPI processes spread to several boards due to the the limited bandwidth of the onboard LAN port.
+- Overall, they have shown Raspberry Pi 2 SDC reveals as an appealing platform for giving support to 3D-FWT-based applications with low-cost and energy efficiency requirements.
+
+* A mathematical model to calculate real cost/performance in software distributed shared memory on computing environments cite:khaneghah17_mathem_model_to_calcul_real
+** Introduction
+- cost/performance ratio is an important factors in HPC(high-performance computing), which acts as an economic justification for running scientific program on HPC system.
+- This ratio parameter specifies the type of scientific program that can run in HPC systems like Cluster, Grid, and Peer-to-Peer (P2P) cite:thackston15_perfor_low_cost_commer_cloud.
+- cost calculate of a system includes: the execution of applications in HPC system, the mechanisms used to calculate the cost(two method).
+  1) The first solution is the mathematical model of calculating cost and efficiency of each scientific program or computing system management application or any special feature of the computing system.
+
+     The most important feature of the minor fee calculation is the process of using program execution for the calculation of cost and the cost/performance ratio.
+     The most important advantage of this method is the feature of proposing the exact cost of a program execution in certain computing systems.
+
+  2) The second solution is using a public pattern to calculate the cost and mentioned coefficient in computing systems.
+- One of the most important questions that should be answered while calculating the inter-process cost in computing systems is the cost calculation pattern.
+- IPC (inter-process communication)
+- DSM (distributed shared memory)
+** Related work
+- SMP (symmetric multi-parallel)
+*** Review of distributed shared memory based on system approach
+*** General parameters of cost in DSM system based on system approach
+
+(...boring topic for now)
+
+* An efficient anonymous authentication protocol in multiple server communication networks (EAAM)  cite:braeken17_effic_anony_authen_protoc_multip
+Propose an efficient anonymous authentication protocal in multiple server communication networks, called EAAM protocal, which is able to establish user anonymity, mutual authentication, and resistance against know security attacks.
+
+THe novelty of the proposed scheme is that it does not require a secure channel during the registration between the user and the registration center and is resistant to a curious but honest registration system.
+
+** Conclusion
+The main novelty of the protocol is that it provides resistance against a honest-but-curious RC(registration center).
+
+(not very relavent to parallel computing)
+
+
+* Strategy for data-flow synchronizations in stencil parallel computations on multi-/manycore systems cite:szustak18_strat_data_flow_synch_stenc
+
+* Bibliography
+bibliography:parallel-numa.bib 
+
+
+
