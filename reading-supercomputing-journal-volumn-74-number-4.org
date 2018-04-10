@@ -125,12 +125,44 @@ Provide an initial task-focused taxonomy for HPC technologies, which covers prog
   1) programming interface
   2) runtime system
 
+
+
+
 * Hybridworkstealingoflocality-flexibleandcancelabletasksfortheAPGAS library  cite:posner18_hybrid_work_steal_local_flexib
+** Abstract
+- parallel programs should be albe to deal with both shared memory and distributed memory
+- propose a hybrid work stealing scheme, which combines the lifeline-based variant of distributed task pools with the node-internal load balancing of Java's Fork/Join framework.
+- [[http://x10-lang.org/releases/apgas-release-100.html][APGAS]] library for Java, which is a branch of the [[http://x10-lang.org][X10]] project.
 * Pythonacceleratorsforhigh-performancecomputing cite:marowka17_python_accel_high_perfor_comput
-* Actor model of Anemone functional language cite:batko18_actor_model_anemon_funct_languag
+** Abstract
+- python is popular and is slow; python community drive the effort to improve the performance of it.
+- focus on specific promised solution that aim to provide high-performance and performance portability for python applications, specially [[http://numba.pydata.org][Numba]].
+** Python accelerators
+A few popular solutions that enhance python's performance
+- Numpy
+- SciPy, extends the functionality of NumPy
+- PyPy, a just-in-time compiler and interpreter for Python. It aims to provide faster efficient and compatible alternative implementation of Python language.
+- Cython, enabling decarations of static typing to functions, variables, and classes, allows C code to be generated once and then compiles with C/C++ compilers to produce efficient C code.
+- Numexpr, a module which accelerate evaluations of a numerical expression operation on NumPy.
+
+** Numba in a nutshell
+** Test case: matrix-matrix multiplication
+
+* Actor model of Anemone functional language cite:batko18_actor_model_anemon_funct_languag 
+** Abstract
+not be able to download yet
 * A process calculus for parallel and distributed programming in Haskell cite:bloecker18_pardis
+** Abstract
+- parallel programming and distributed programming is hard to implement, result in non-deterministic program behaviour.
+- gap between model and implementation
+- propose a fully determinisitc process calculus for parallel and distributed programming and implement it as a domain-specific language in Haskell to address these problems.
+- achieve correctness guarantees regarding process composition at compile time through Haskell's type system.
+- Their result could be used as a high-level tool to implement parallel and distributed programs.
+
+(to read)
 * Function portability of molecular dynamics on heterogeneous parallel architectures with OpenCL  cite:halver18_funct_portab_molec_dynam_heter
 
+** Abstract
 
 * Special section on parallel programming cite:marowka18_special_section_paral_progr
 * Bibliography
