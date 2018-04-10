@@ -40,7 +40,99 @@ The main novelty of the protocol is that it provides resistance against a honest
 
 
 * Strategy for data-flow synchronizations in stencil parallel computations on multi-/manycore systems cite:szustak18_strat_data_flow_synch_stenc
+An innovative strategy for the data-flow synchronization in shared-memory system is proposed. This trategy assumes to synchronize only interdependent threads instead of using the barrier approach.
+Their proposed approache is evaluated for various Intel microarchitectures and done comparision with OpenMP barrier. It show it is better for 1.3 times.
 
+** Introduction
+The main idea of this strategy is to synchronize only interdependent threads instead of using the barrier approach that—in contrast to our approach—synchronize all threads. An inseparable part of this strategy is the scheme of thread interrelationships for a given application. In fact, the data dependencies, workload distribution, way of parallelization and inter-thread data traffic play a key role in the effective adaptation of this strategy to a given application.
+
+- the state-of-the-art synchronization alogrithms differ in trade-off between communication complexity, length of the critical path and memory footprint cite:braeken17_effic_anony_authen_protoc_multip. 
+- The barriers are an essential sychronization approach for parallel models of many shared-memory programming languages such as OpenMP, OpenCL or Cilk. They can be grouped into three categories: centralized, tree and butterfly.
+- Each synchronization algorithm features its own set of trade-off, where the areal profit is largely dependent on the structure of a computing system.
+
+The main aim of this work is to avoid global barriers: the synchronization process should proceed only between carefully selected threads that depend on each others. An justification and study of related work meeting this challenge can be found in work cite:bhatti13_effic_synch_stenc_comput_using.
+- what is dynamic task graph?
+
+- An other synchronization strategie: Data-flow communication layers are very popular in distributed-memory programming standards, including MPI or hStreams programming library 
+- In both cases, the synchronization between the interdepen- dent processing elements is explicitly defined according to communication flows of data, using the specific commands such as MPI_Send and MPI_Recv in the case of MPI. 
+
+So, there are two strategies for synchronizations:
+1) barrier based, used mainly in shared-memory model 
+2) data flow based, used mainly in distributed-memory model 
+
+The author use data flow based, in shared-memory model.
+
+* Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus cite:stpiczyński18_languag_based_vector_paral_using
+This paper evaluate OpenMP, TBB and Cilk Plus as basic language-based tools for simple and efficient parallelization of recursively defined computatinal problems and other problems that need both task and data parallelization techniques.
+
+Show how to use these models to utilize multiple cores of modern processes.
+- tuning data structures for better utilization of vector extensions of modern processors.
+- Manual vectorization techniques based on Cilk
+- Intel SIMD Data Layout Template containers
+
+** Introduction
+Intel C/C++ compilers and development tools offer many language-based extensions that can be used to simplify the process of developing high-performance parallel programs.
+- OpenMP
+- Threading Building BLocks (TBB)
+- Cilk Plus
+- /intrinsics/, which all to utilize Intel Advanced Vector Extensions explicitly cite:16_intel_xeon_phi_proces_high_perfor_progr. 
+- SDLT template library can be applied to introduce SIMD-friendly memory layout transparently cite:16_intel_xeon_phi_proces_high_perfor_progr.
+
+** Short overview of selected language-based tools
+- OpenMP
+- [[https://www.threadingbuildingblocks.org][TBB]] is a C+++ template library supporting task parallelism on Intel multicore platformcs.
+- [[https://www.cilkplus.org][Cilk Plus]] adds simple language extensions to the C and C++languages to express task and data parallelism.
+- Intrinsics for SIMD instructions allow to take full advantage of Intel Advanced Vector Extensions what cannot always be easily achieved due to limitations of programming languages and compilers. They all programmers to write constructs that look like C/C++ functions calls corresponding to actual SIMD instructions.
+- SDLT (SIMD Data Layout Template) is a C++11 template library which provides containers with SIMD-friendly data layouts.
+** Conclusion
+- They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys between those libraries.
+
+* Parallelization of stochastic bounds for Markov chains on multicore and manycore platforms cite:bylina18_paral_stoch_bound_markov_chain
+Demonstrates the methodology for parallelizing of finding stochastic bounds for Markov chains on multicore and manycore platformcs
+- involve a lot of irregular memory access.
+- using OpenMP(for loop parallelism) and Cilk Plus (for task-based parallelism)
+- compare the execution time and scalability
+
+** Experimental results
+- time
+- speedup
+** Conclusion
+This paper presents the strength of the OpenMP standard for parallelizing with the use of ~#pragma omp parallel for~ which is data parallelism in OpenMP.
+
+** Things to do:
+need to state clearly what is the main differences between task parallelism and loop (data) parallelism.
+
+* A taxonomy of task-based parallel programming technologies for high-performance computing cite:thoman18_taxon_task_based_paral_progr
+
+Provide an initial task-focused taxonomy for HPC technologies, which covers programming interface and runtime mechanisms.
+
+** Introduction
+- In HPC domain, loop-based and message-passing paradigms are dominant. We specifically aim to categorize task-based parallelism technologies which are in use in HPC
+- Definition of task: a sequence of instructions within a program that can be processed concurrently with other tasks in the same program.
+- Several languages are common in HPC domain:
+  1) Cilk 
+  2) OpenMP 
+  3) TBB 
+  4) Qthreads
+  5) Argobots
+  6) StarGPU
+  7) Chapel
+  8) X10
+  9) HPX
+  10) Charm++
+
+- Each task-based environment has two central components:
+  1) programming interface
+  2) runtime system
+
+* Hybridworkstealingoflocality-flexibleandcancelabletasksfortheAPGAS library  cite:posner18_hybrid_work_steal_local_flexib
+* Pythonacceleratorsforhigh-performancecomputing cite:marowka17_python_accel_high_perfor_comput
+* Actor model of Anemone functional language cite:batko18_actor_model_anemon_funct_languag
+* A process calculus for parallel and distributed programming in Haskell cite:bloecker18_pardis
+* Function portability of molecular dynamics on heterogeneous parallel architectures with OpenCL  cite:halver18_funct_portab_molec_dynam_heter
+
+
+* Special section on parallel programming cite:marowka18_special_section_paral_progr
 * Bibliography
 bibliography:parallel-numa.bib 
 
