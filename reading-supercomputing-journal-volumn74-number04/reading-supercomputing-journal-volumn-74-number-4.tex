@@ -1,4 +1,4 @@
-% Created 2018-04-11 Wed 12:34
+% Created 2018-04-11 Wed 14:14
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -20,6 +20,7 @@
 \usepackage{cleveref}
 \usepackage{xcolor}
 \usepackage{amsmath}
+\hypersetup{colorlinks=true}
 \author{zwpdbh}
 \date{\today}
 \title{reading notes for supercomputing journal value 74 no. 4}
@@ -31,6 +32,7 @@
 
 \maketitle
 \tableofcontents
+
 
 
 \section{Parallel implementations of the 3D fast wavelet transform on a Raspberry Pi 2 cluster \cite{bernabe16_paral_implem_fast_wavel_trans}}
@@ -122,8 +124,9 @@ So, there are two strategies for synchronizations:
 
 The author use data flow based, in shared-memory model.
 
-\section{Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus  \cite{stpiczyński18_languag_based_vector_paral_using}}
+\section{Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus  \cite{stpiczynski18_languag_based_vector_paral_using}}
 \label{sec-5}
+
 This paper evaluate OpenMP, TBB and Cilk Plus as basic language-based tools for simple and efficient parallelization of recursively defined computatinal problems and other problems that need both task and data parallelization techniques.
 
 Show how to use these models to utilize multiple cores of modern processes.
@@ -140,8 +143,8 @@ Intel C/C++ compilers and development tools offer many language-based extensions
 \item OpenMP
 \item Threading Building BLocks (TBB)
 \item Cilk Plus
-\item \emph{intrinsics}, which all to utilize Intel Advanced Vector Extensions explicitly \cite{16_intel_xeon_phi_proces_high_perfor_progr}.
-\item SDLT template library can be applied to introduce SIMD-friendly memory layout transparently \cite{16_intel_xeon_phi_proces_high_perfor_progr}.
+\item \emph{intrinsics}, which all to utilize Intel Advanced Vector Extensions explicitly
+\item SDLT template library can be applied to introduce SIMD-friendly memory layout transparently
 \end{itemize}
 
 \subsection{Short overview of selected language-based tools}
@@ -156,7 +159,7 @@ Intel C/C++ compilers and development tools offer many language-based extensions
 \subsection{Conclusion}
 \label{sec-5-3}
 \begin{itemize}
-\item They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys between those librarie
+\item They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys be
 \end{itemize}
 \section{Parallelization of stochastic bounds for Markov chains on multicore and manycore platforms \cite{bylina18_paral_stoch_bound_markov_chain}}
 \label{sec-6}
@@ -296,6 +299,6 @@ not be able to download yet
 \section{Bibliography}
 \label{sec-13}
 \bibliographystyle{abbrv}
-\bibliography{parallel-numa} 
+\bibliography{../parallel-numa} 
 % Emacs 25.3.1 (Org mode 8.2.10)
 \end{document}

@@ -1,0 +1,36 @@
+\BOOKMARK [1][-]{section.1}{Parallel implementations of the 3D fast wavelet transform on a Raspberry Pi 2 cluster bernabe16paralimplemfastwaveltrans}{}% 1
+\BOOKMARK [2][-]{subsection.1.1}{Introduction}{section.1}% 2
+\BOOKMARK [1][-]{section.2}{A mathematical model to calculate real cost/performance in software distributed shared memory on computing environments khaneghah17mathemmodeltocalculreal}{}% 3
+\BOOKMARK [2][-]{subsection.2.1}{Introduction}{section.2}% 4
+\BOOKMARK [2][-]{subsection.2.2}{Related work}{section.2}% 5
+\BOOKMARK [3][-]{subsubsection.2.2.1}{Review of distributed shared memory based on system approach}{subsection.2.2}% 6
+\BOOKMARK [3][-]{subsubsection.2.2.2}{General parameters of cost in DSM system based on system approach}{subsection.2.2}% 7
+\BOOKMARK [1][-]{section.3}{An efficient anonymous authentication protocol in multiple server communication networks \(EAAM\) braeken17efficanonyauthenprotocmultip}{}% 8
+\BOOKMARK [2][-]{subsection.3.1}{Conclusion}{section.3}% 9
+\BOOKMARK [1][-]{section.4}{Strategy for data-flow synchronizations in stencil parallel computations on multi-/manycore systems szustak18stratdataflowsynchstenc}{}% 10
+\BOOKMARK [2][-]{subsection.4.1}{Introduction}{section.4}% 11
+\BOOKMARK [1][-]{section.5}{Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus stpiczynski18languagbasedvectorparalusing}{}% 12
+\BOOKMARK [2][-]{subsection.5.1}{Introduction}{section.5}% 13
+\BOOKMARK [2][-]{subsection.5.2}{Short overview of selected language-based tools}{section.5}% 14
+\BOOKMARK [2][-]{subsection.5.3}{Conclusion}{section.5}% 15
+\BOOKMARK [1][-]{section.6}{Parallelization of stochastic bounds for Markov chains on multicore and manycore platforms bylina18paralstochboundmarkovchain}{}% 16
+\BOOKMARK [2][-]{subsection.6.1}{Experimental results}{section.6}% 17
+\BOOKMARK [2][-]{subsection.6.2}{Conclusion}{section.6}% 18
+\BOOKMARK [2][-]{subsection.6.3}{Things to do:}{section.6}% 19
+\BOOKMARK [1][-]{section.7}{A taxonomy of task-based parallel programming technologies for high-performance computing thoman18taxontaskbasedparalprogr}{}% 20
+\BOOKMARK [2][-]{subsection.7.1}{Introduction}{section.7}% 21
+\BOOKMARK [1][-]{section.8}{Hybridworkstealingoflocality-flexibleandcancelabletasksfortheAPGAS library posner18hybridworksteallocalflexib}{}% 22
+\BOOKMARK [2][-]{subsection.8.1}{Abstract}{section.8}% 23
+\BOOKMARK [1][-]{section.9}{Pythonacceleratorsforhigh-performancecomputing marowka17pythonaccelhighperforcomput}{}% 24
+\BOOKMARK [2][-]{subsection.9.1}{Abstract}{section.9}% 25
+\BOOKMARK [2][-]{subsection.9.2}{Python accelerators}{section.9}% 26
+\BOOKMARK [2][-]{subsection.9.3}{Numba in a nutshell}{section.9}% 27
+\BOOKMARK [2][-]{subsection.9.4}{Test case: matrix-matrix multiplication}{section.9}% 28
+\BOOKMARK [1][-]{section.10}{Actor model of Anemone functional language batko18actormodelanemonfunctlanguag}{}% 29
+\BOOKMARK [2][-]{subsection.10.1}{Abstract}{section.10}% 30
+\BOOKMARK [1][-]{section.11}{A process calculus for parallel and distributed programming in Haskell bloecker18pardis}{}% 31
+\BOOKMARK [2][-]{subsection.11.1}{Abstract}{section.11}% 32
+\BOOKMARK [1][-]{section.12}{Function portability of molecular dynamics on heterogeneous parallel architectures with OpenCL halver18functportabmolecdynamheter}{}% 33
+\BOOKMARK [2][-]{subsection.12.1}{Abstract}{section.12}% 34
+\BOOKMARK [2][-]{subsection.12.2}{Conclusion}{section.12}% 35
+\BOOKMARK [1][-]{section.13}{Bibliography}{}% 36

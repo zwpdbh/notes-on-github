@@ -1,0 +1,87 @@
+\begin{thebibliography}{10}
+
+\bibitem{batko18_actor_model_anemon_funct_languag}
+P.~Batko and M.~Kuta.
+\newblock Actor model of anemone functional language.
+\newblock {\em The Journal of Supercomputing}, 74(4):1485--1496, 2018.
+
+\bibitem{bernabe16_paral_implem_fast_wavel_trans}
+G.~Bernab{\'e}, R.~Hern{\'a}ndez, and M.~E. Acacio.
+\newblock Parallel implementations of the 3d fast wavelet transform on a
+  raspberry pi 2 cluster.
+\newblock {\em The Journal of Supercomputing}, 74(4):1765--1778, 2016.
+
+\bibitem{bhatti13_effic_synch_stenc_comput_using}
+Z.~W. Bhatti, R.~Wuyts, P.~Costanza, D.~Preuveneers, and Y.~Berbers.
+\newblock Efficient synchronization for stencil computations using dynamic task
+  graphs.
+\newblock {\em Procedia Computer Science}, 18(nil):2428--2431, 2013.
+
+\bibitem{bloecker18_pardis}
+C.~Bl{\"o}cker and U.~Hoffmann.
+\newblock Pardis: a process calculus for parallel and distributed programming
+  in haskell.
+\newblock {\em The Journal of Supercomputing}, 74(4):1473--1484, 2018.
+
+\bibitem{braeken17_effic_anony_authen_protoc_multip}
+A.~Braeken, P.~Kumar, M.~Liyanage, and T.~T.~K. Hue.
+\newblock An efficient anonymous authentication protocol in multiple server
+  communication networks (eaam).
+\newblock {\em The Journal of Supercomputing}, 74(4):1695--1714, 2017.
+
+\bibitem{bylina18_paral_stoch_bound_markov_chain}
+J.~Bylina.
+\newblock Parallelization of stochastic bounds for markov chains on multicore
+  and manycore platforms.
+\newblock {\em The Journal of Supercomputing}, 74(4):1497--1509, 2018.
+
+\bibitem{halver18_funct_portab_molec_dynam_heter}
+R.~Halver, W.~Homberg, and G.~Sutmann.
+\newblock Function portability of molecular dynamics on heterogeneous parallel
+  architectures with opencl.
+\newblock {\em The Journal of Supercomputing}, 74(4):1522--1533, 2018.
+
+\bibitem{khaneghah17_mathem_model_to_calcul_real}
+E.~M. Khaneghah, N.~Shadnoush, and A.~H. Ghobakhlou.
+\newblock A mathematical model to calculate real cost/performance in software
+  distributed shared memory on computing environments.
+\newblock {\em The Journal of Supercomputing}, 74(4):1715--1764, 2017.
+
+\bibitem{marowka17_python_accel_high_perfor_comput}
+A.~Marowka.
+\newblock Python accelerators for high-performance computing.
+\newblock {\em The Journal of Supercomputing}, 74(4):1449--1460, 2017.
+
+\bibitem{posner18_hybrid_work_steal_local_flexib}
+J.~Posner and C.~Fohry.
+\newblock Hybrid work stealing of locality-flexible and cancelable tasks for
+  the apgas library.
+\newblock {\em The Journal of Supercomputing}, 74(4):1435--1448, 2018.
+
+\bibitem{stpiczynski18_languag_based_vector_paral_using}
+P.~Stpiczyński.
+\newblock Language-based vectorization and parallelization using intrinsics,
+  openmp, tbb and cilk plus.
+\newblock {\em The Journal of Supercomputing}, 74(4):1461--1472, 2018.
+
+\bibitem{szustak18_strat_data_flow_synch_stenc}
+L.~Szustak.
+\newblock Strategy for data-flow synchronizations in stencil parallel
+  computations on multi-/manycore systems.
+\newblock {\em The Journal of Supercomputing}, 74(4):1534--1546, 2018.
+
+\bibitem{thackston15_perfor_low_cost_commer_cloud}
+R.~Thackston and R.~C. Fortenberry.
+\newblock The performance of low-cost commercial cloud computing as an
+  alternative in computational chemistry.
+\newblock {\em Journal of Computational Chemistry}, 36(12):926--933, 2015.
+
+\bibitem{thoman18_taxon_task_based_paral_progr}
+P.~Thoman, K.~Dichev, T.~Heller, R.~Iakymchuk, X.~Aguilar, K.~Hasanov,
+  P.~Gschwandtner, P.~Lemarinier, S.~Markidis, H.~Jordan, T.~Fahringer,
+  K.~Katrinis, E.~Laure, and D.~S. Nikolopoulos.
+\newblock A taxonomy of task-based parallel programming technologies for
+  high-performance computing.
+\newblock {\em The Journal of Supercomputing}, 74(4):1422--1434, 2018.
+
+\end{thebibliography}

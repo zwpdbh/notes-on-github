@@ -3,6 +3,8 @@
 #+latex_header: \usepackage{cleveref}
 #+latex_header: \usepackage{xcolor}
 #+latex_header: \usepackage{amsmath}
+#+latex_header: \hypersetup{colorlinks=true}
+
 
 * Parallel implementations of the 3D fast wavelet transform on a Raspberry Pi 2 cluster cite:bernabe16_paral_implem_fast_wavel_trans
 Present and evaluate 3 parallelization strategies of the 3d fast wavelet transform on a cluster of Raspberry Pi 2 SDCs. Using booth pthread and MPI.
@@ -68,7 +70,8 @@ So, there are two strategies for synchronizations:
 
 The author use data flow based, in shared-memory model.
 
-* Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus  cite:stpiczyński18_languag_based_vector_paral_using
+* Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus  cite:stpiczynski18_languag_based_vector_paral_using
+
 This paper evaluate OpenMP, TBB and Cilk Plus as basic language-based tools for simple and efficient parallelization of recursively defined computatinal problems and other problems that need both task and data parallelization techniques.
 
 Show how to use these models to utilize multiple cores of modern processes.
@@ -81,8 +84,8 @@ Intel C/C++ compilers and development tools offer many language-based extensions
 - OpenMP
 - Threading Building BLocks (TBB)
 - Cilk Plus
-- /intrinsics/, which all to utilize Intel Advanced Vector Extensions explicitly cite:16_intel_xeon_phi_proces_high_perfor_progr. 
-- SDLT template library can be applied to introduce SIMD-friendly memory layout transparently cite:16_intel_xeon_phi_proces_high_perfor_progr.
+- /intrinsics/, which all to utilize Intel Advanced Vector Extensions explicitly
+- SDLT template library can be applied to introduce SIMD-friendly memory layout transparently
 
 ** Short overview of selected language-based tools
 - OpenMP
@@ -91,7 +94,7 @@ Intel C/C++ compilers and development tools offer many language-based extensions
 - Intrinsics for SIMD instructions allow to take full advantage of Intel Advanced Vector Extensions what cannot always be easily achieved due to limitations of programming languages and compilers. They all programmers to write constructs that look like C/C++ functions calls corresponding to actual SIMD instructions.
 - SDLT (SIMD Data Layout Template) is a C++11 template library which provides containers with SIMD-friendly data layouts.
 ** Conclusion
-- They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys between those librarie
+- They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys be
 * Parallelization of stochastic bounds for Markov chains on multicore and manycore platforms cite:bylina18_paral_stoch_bound_markov_chain
 Demonstrates the methodology for parallelizing of finding stochastic bounds for Markov chains on multicore and manycore platformcs
 - involve a lot of irregular memory access.
@@ -183,7 +186,7 @@ not be able to download yet
 
 * Bibliography
 bibliographystyle:abbrv
-bibliography:parallel-numa.bib 
+bibliography:../parallel-numa.bib 
 
 
 

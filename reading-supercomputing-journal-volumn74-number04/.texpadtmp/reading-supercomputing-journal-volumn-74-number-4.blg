@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2016)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: /Users/zw/OneDrive/notes/notes-on-github/reading-supercomputing-journal-volumn74-number04/.texpadtmp/reading-supercomputing-journal-volumn-74-number-4.aux
+The style file: abbrv.bst
+Database file #1: ../../parallel-numa.bib
+Warning--I didn't find a database entry for "stpiczy«ski18_languag_based_vector_paral_using"
+You've used 13 entries,
+            2118 wiz_defined-function locations,
+            563 strings with 6702 characters,
+and the built_in function-call counts, 4957 in all, are:
+= -- 471
+> -- 251
+< -- 0
++ -- 103
+- -- 86
+* -- 425
+:= -- 839
+add.period$ -- 39
+call.type$ -- 13
+change.case$ -- 82
+chr.to.int$ -- 0
+cite$ -- 13
+duplicate$ -- 143
+empty$ -- 376
+format.name$ -- 86
+if$ -- 1012
+int.to.chr$ -- 0
+int.to.str$ -- 13
+missing$ -- 13
+newline$ -- 68
+num.names$ -- 26
+pop$ -- 56
+preamble$ -- 1
+purify$ -- 69
+quote$ -- 0
+skip$ -- 94
+stack$ -- 0
+substring$ -- 414
+swap$ -- 13
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 52
+warning$ -- 0
+while$ -- 39
+width$ -- 15
+write$ -- 145
+(There was 1 warning)

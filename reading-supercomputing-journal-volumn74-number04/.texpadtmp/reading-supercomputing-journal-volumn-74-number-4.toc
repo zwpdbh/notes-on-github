@@ -1,0 +1,36 @@
+\contentsline {section}{\numberline {1}Parallel implementations of the 3D fast wavelet transform on a Raspberry Pi 2 cluster \cite {bernabe16_paral_implem_fast_wavel_trans}}{2}{section.1}
+\contentsline {subsection}{\numberline {1.1}Introduction}{3}{subsection.1.1}
+\contentsline {section}{\numberline {2}A mathematical model to calculate real cost/performance in software distributed shared memory on computing environments \cite {khaneghah17_mathem_model_to_calcul_real}}{3}{section.2}
+\contentsline {subsection}{\numberline {2.1}Introduction}{3}{subsection.2.1}
+\contentsline {subsection}{\numberline {2.2}Related work}{4}{subsection.2.2}
+\contentsline {subsubsection}{\numberline {2.2.1}Review of distributed shared memory based on system approach}{4}{subsubsection.2.2.1}
+\contentsline {subsubsection}{\numberline {2.2.2}General parameters of cost in DSM system based on system approach}{4}{subsubsection.2.2.2}
+\contentsline {section}{\numberline {3}An efficient anonymous authentication protocol in multiple server communication networks (EAAM) \cite {braeken17_effic_anony_authen_protoc_multip}}{4}{section.3}
+\contentsline {subsection}{\numberline {3.1}Conclusion}{4}{subsection.3.1}
+\contentsline {section}{\numberline {4}Strategy for data-flow synchronizations in stencil parallel computations on multi-/manycore systems \cite {szustak18_strat_data_flow_synch_stenc}}{5}{section.4}
+\contentsline {subsection}{\numberline {4.1}Introduction}{5}{subsection.4.1}
+\contentsline {section}{\numberline {5}Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus \cite {stpiczy\IeC {\'n}ski18_languag_based_vector_paral_using}}{6}{section.5}
+\contentsline {subsection}{\numberline {5.1}Introduction}{6}{subsection.5.1}
+\contentsline {subsection}{\numberline {5.2}Short overview of selected language-based tools}{7}{subsection.5.2}
+\contentsline {subsection}{\numberline {5.3}Conclusion}{7}{subsection.5.3}
+\contentsline {section}{\numberline {6}Parallelization of stochastic bounds for Markov chains on multicore and manycore platforms \cite {bylina18_paral_stoch_bound_markov_chain}}{7}{section.6}
+\contentsline {subsection}{\numberline {6.1}Experimental results}{8}{subsection.6.1}
+\contentsline {subsection}{\numberline {6.2}Conclusion}{8}{subsection.6.2}
+\contentsline {subsection}{\numberline {6.3}Things to do:}{8}{subsection.6.3}
+\contentsline {section}{\numberline {7}A taxonomy of task-based parallel programming technologies for high-performance computing \cite {thoman18_taxon_task_based_paral_progr}}{8}{section.7}
+\contentsline {subsection}{\numberline {7.1}Introduction}{8}{subsection.7.1}
+\contentsline {section}{\numberline {8}Hybridworkstealingoflocality-flexibleandcancelabletasksfortheAPGAS library \cite {posner18_hybrid_work_steal_local_flexib}}{9}{section.8}
+\contentsline {subsection}{\numberline {8.1}Abstract}{9}{subsection.8.1}
+\contentsline {section}{\numberline {9}Pythonacceleratorsforhigh-performancecomputing \cite {marowka17_python_accel_high_perfor_comput}}{9}{section.9}
+\contentsline {subsection}{\numberline {9.1}Abstract}{9}{subsection.9.1}
+\contentsline {subsection}{\numberline {9.2}Python accelerators}{9}{subsection.9.2}
+\contentsline {subsection}{\numberline {9.3}Numba in a nutshell}{10}{subsection.9.3}
+\contentsline {subsection}{\numberline {9.4}Test case: matrix-matrix multiplication}{10}{subsection.9.4}
+\contentsline {section}{\numberline {10}Actor model of Anemone functional language \cite {batko18_actor_model_anemon_funct_languag}}{10}{section.10}
+\contentsline {subsection}{\numberline {10.1}Abstract}{10}{subsection.10.1}
+\contentsline {section}{\numberline {11}A process calculus for parallel and distributed programming in Haskell \cite {bloecker18_pardis}}{10}{section.11}
+\contentsline {subsection}{\numberline {11.1}Abstract}{10}{subsection.11.1}
+\contentsline {section}{\numberline {12}Function portability of molecular dynamics on heterogeneous parallel architectures with OpenCL \cite {halver18_funct_portab_molec_dynam_heter}}{11}{section.12}
+\contentsline {subsection}{\numberline {12.1}Abstract}{11}{subsection.12.1}
+\contentsline {subsection}{\numberline {12.2}Conclusion}{11}{subsection.12.2}
+\contentsline {section}{\numberline {13}Bibliography}{12}{section.13}
