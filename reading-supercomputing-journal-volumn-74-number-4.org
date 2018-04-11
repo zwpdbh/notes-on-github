@@ -1,3 +1,9 @@
+#+title: reading notes for supercomputing journal value 74 no. 4
+#+latex_header: \usepackage{hyperref}
+#+latex_header: \usepackage{cleveref}
+#+latex_header: \usepackage{xcolor}
+#+latex_header: \usepackage{amsmath}
+
 * Parallel implementations of the 3D fast wavelet transform on a Raspberry Pi 2 cluster cite:bernabe16_paral_implem_fast_wavel_trans
 Present and evaluate 3 parallelization strategies of the 3d fast wavelet transform on a cluster of Raspberry Pi 2 SDCs. Using booth pthread and MPI.
 
@@ -62,7 +68,7 @@ So, there are two strategies for synchronizations:
 
 The author use data flow based, in shared-memory model.
 
-* Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus cite:stpiczyński18_languag_based_vector_paral_using
+* Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus  cite:stpiczyński18_languag_based_vector_paral_using
 This paper evaluate OpenMP, TBB and Cilk Plus as basic language-based tools for simple and efficient parallelization of recursively defined computatinal problems and other problems that need both task and data parallelization techniques.
 
 Show how to use these models to utilize multiple cores of modern processes.
@@ -85,8 +91,7 @@ Intel C/C++ compilers and development tools offer many language-based extensions
 - Intrinsics for SIMD instructions allow to take full advantage of Intel Advanced Vector Extensions what cannot always be easily achieved due to limitations of programming languages and compilers. They all programmers to write constructs that look like C/C++ functions calls corresponding to actual SIMD instructions.
 - SDLT (SIMD Data Layout Template) is a C++11 template library which provides containers with SIMD-friendly data layouts.
 ** Conclusion
-- They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys between those libraries.
-
+- They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys between those librarie
 * Parallelization of stochastic bounds for Markov chains on multicore and manycore platforms cite:bylina18_paral_stoch_bound_markov_chain
 Demonstrates the methodology for parallelizing of finding stochastic bounds for Markov chains on multicore and manycore platformcs
 - involve a lot of irregular memory access.
@@ -161,11 +166,23 @@ not be able to download yet
 
 (to read)
 * Function portability of molecular dynamics on heterogeneous parallel architectures with OpenCL  cite:halver18_funct_portab_molec_dynam_heter
-
 ** Abstract
+- evaluate latency, data transfer, memory access characterisitcs of parallel compute intense work
+- data layout, for which the access of structure-of-arrays shows best performance in most cases.
+- performance portability is a problem since various architectures strongly depend on specific vectorization optimization.
 
-* Special section on parallel programming cite:marowka18_special_section_paral_progr
+** Conclusion
+- One of the main goals of the present work was to investigate the performance character- istics of a function portable cell-based MD program on a set of different architectures.
+- OpenCL has been chosen because it allows for interoperability on different types of architectures. Without any changes of the code it was possible to execute a benchmark on several multi- and many-core systems. Compared severl features:
+  1) memory bandwidth
+  2) core speed 
+  3) effects of data structure layout (an important issue for GPU architectures)
+     - arrays-of-structures
+     - structure-of-arrays 
+- Current their research focus on function portability, A desirable feature would be performance portability
+
 * Bibliography
+bibliographystyle:abbrv
 bibliography:parallel-numa.bib 
 
 

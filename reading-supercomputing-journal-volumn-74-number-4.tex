@@ -1,0 +1,301 @@
+% Created 2018-04-11 Wed 12:34
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\tolerance=1000
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\author{zwpdbh}
+\date{\today}
+\title{reading notes for supercomputing journal value 74 no. 4}
+\hypersetup{
+  pdfkeywords={},
+  pdfsubject={},
+  pdfcreator={Emacs 25.3.1 (Org mode 8.2.10)}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+
+\section{Parallel implementations of the 3D fast wavelet transform on a Raspberry Pi 2 cluster \cite{bernabe16_paral_implem_fast_wavel_trans}}
+\label{sec-1}
+Present and evaluate 3 parallelization strategies of the 3d fast wavelet transform on a cluster of Raspberry Pi 2 SDCs. Using booth pthread and MPI.
+
+\subsection{Introduction}
+\label{sec-1-1}
+\begin{itemize}
+\item In this work, they study the parallelization of the 3d fast wavelet transform(3D-FWT) on a cluster of raspberry pi 2 SDC(single-board computer)s. Using pthread and MPI for evaluating 3 different parallelization strategies on a cluster of 4 Pis.
+\item Pthread version are restricted to runs on a single boards, and MPI version can span to several Pis.
+\item Performance drops when all MPI processes spread to several boards due to the the limited bandwidth of the onboard LAN port.
+\item Overall, they have shown Raspberry Pi 2 SDC reveals as an appealing platform for giving support to 3D-FWT-based applications with low-cost and energy efficiency requirements.
+\end{itemize}
+
+\section{A mathematical model to calculate real cost/performance in software distributed shared memory on computing environments \cite{khaneghah17_mathem_model_to_calcul_real}}
+\label{sec-2}
+\subsection{Introduction}
+\label{sec-2-1}
+\begin{itemize}
+\item cost/performance ratio is an important factors in HPC(high-performance computing), which acts as an economic justification for running scientific program on HPC system.
+\item This ratio parameter specifies the type of scientific program that can run in HPC systems like Cluster, Grid, and Peer-to-Peer (P2P) \cite{thackston15_perfor_low_cost_commer_cloud}.
+\item cost calculate of a system includes: the execution of applications in HPC system, the mechanisms used to calculate the cost(two method).
+\begin{enumerate}
+\item The first solution is the mathematical model of calculating cost and efficiency of each scientific program or computing system management application or any special feature of the computing system.
+
+The most important feature of the minor fee calculation is the process of using program execution for the calculation of cost and the cost/performance ratio.
+The most important advantage of this method is the feature of proposing the exact cost of a program execution in certain computing systems.
+
+\item The second solution is using a public pattern to calculate the cost and mentioned coefficient in computing systems.
+\end{enumerate}
+\item One of the most important questions that should be answered while calculating the inter-process cost in computing systems is the cost calculation pattern.
+\item IPC (inter-process communication)
+\item DSM (distributed shared memory)
+\end{itemize}
+\subsection{Related work}
+\label{sec-2-2}
+\begin{itemize}
+\item SMP (symmetric multi-parallel)
+\end{itemize}
+\subsubsection{Review of distributed shared memory based on system approach}
+\label{sec-2-2-1}
+\subsubsection{General parameters of cost in DSM system based on system approach}
+\label{sec-2-2-2}
+
+(\ldots{}boring topic for now)
+
+\section{An efficient anonymous authentication protocol in multiple server communication networks (EAAM)  \cite{braeken17_effic_anony_authen_protoc_multip}}
+\label{sec-3}
+Propose an efficient anonymous authentication protocal in multiple server communication networks, called EAAM protocal, which is able to establish user anonymity, mutual authentication, and resistance against know security attacks.
+
+THe novelty of the proposed scheme is that it does not require a secure channel during the registration between the user and the registration center and is resistant to a curious but honest registration system.
+
+\subsection{Conclusion}
+\label{sec-3-1}
+The main novelty of the protocol is that it provides resistance against a honest-but-curious RC(registration center).
+
+(not very relavent to parallel computing)
+
+
+\section{Strategy for data-flow synchronizations in stencil parallel computations on multi-/manycore systems \cite{szustak18_strat_data_flow_synch_stenc}}
+\label{sec-4}
+An innovative strategy for the data-flow synchronization in shared-memory system is proposed. This trategy assumes to synchronize only interdependent threads instead of using the barrier approach.
+Their proposed approache is evaluated for various Intel microarchitectures and done comparision with OpenMP barrier. It show it is better for 1.3 times.
+
+\subsection{Introduction}
+\label{sec-4-1}
+The main idea of this strategy is to synchronize only interdependent threads instead of using the barrier approach that—in contrast to our approach—synchronize all threads. An inseparable part of this strategy is the scheme of thread interrelationships for a given application. In fact, the data dependencies, workload distribution, way of parallelization and inter-thread data traffic play a key role in the effective adaptation of this strategy to a given application.
+
+\begin{itemize}
+\item the state-of-the-art synchronization alogrithms differ in trade-off between communication complexity, length of the critical path and memory footprint \cite{braeken17_effic_anony_authen_protoc_multip}.
+\item The barriers are an essential sychronization approach for parallel models of many shared-memory programming languages such as OpenMP, OpenCL or Cilk. They can be grouped into three categories: centralized, tree and butterfly.
+\item Each synchronization algorithm features its own set of trade-off, where the areal profit is largely dependent on the structure of a computing system.
+\end{itemize}
+
+The main aim of this work is to avoid global barriers: the synchronization process should proceed only between carefully selected threads that depend on each others. An justification and study of related work meeting this challenge can be found in work \cite{bhatti13_effic_synch_stenc_comput_using}.
+\begin{itemize}
+\item what is dynamic task graph?
+
+\item An other synchronization strategie: Data-flow communication layers are very popular in distributed-memory programming standards, including MPI or hStreams programming library
+\item In both cases, the synchronization between the interdepen- dent processing elements is explicitly defined according to communication flows of data, using the specific commands such as MPI$_{\text{Send}}$ and MPI$_{\text{Recv}}$ in the case of MPI.
+\end{itemize}
+
+So, there are two strategies for synchronizations:
+\begin{enumerate}
+\item barrier based, used mainly in shared-memory model
+\item data flow based, used mainly in distributed-memory model
+\end{enumerate}
+
+The author use data flow based, in shared-memory model.
+
+\section{Language-based vectorization and parallelization using intrinsics, OpenMP, TBB and Cilk Plus  \cite{stpiczyński18_languag_based_vector_paral_using}}
+\label{sec-5}
+This paper evaluate OpenMP, TBB and Cilk Plus as basic language-based tools for simple and efficient parallelization of recursively defined computatinal problems and other problems that need both task and data parallelization techniques.
+
+Show how to use these models to utilize multiple cores of modern processes.
+\begin{itemize}
+\item tuning data structures for better utilization of vector extensions of modern processors.
+\item Manual vectorization techniques based on Cilk
+\item Intel SIMD Data Layout Template containers
+\end{itemize}
+
+\subsection{Introduction}
+\label{sec-5-1}
+Intel C/C++ compilers and development tools offer many language-based extensions that can be used to simplify the process of developing high-performance parallel programs.
+\begin{itemize}
+\item OpenMP
+\item Threading Building BLocks (TBB)
+\item Cilk Plus
+\item \emph{intrinsics}, which all to utilize Intel Advanced Vector Extensions explicitly \cite{16_intel_xeon_phi_proces_high_perfor_progr}.
+\item SDLT template library can be applied to introduce SIMD-friendly memory layout transparently \cite{16_intel_xeon_phi_proces_high_perfor_progr}.
+\end{itemize}
+
+\subsection{Short overview of selected language-based tools}
+\label{sec-5-2}
+\begin{itemize}
+\item OpenMP
+\item \href{https://www.threadingbuildingblocks.org}{TBB} is a C+++ template library supporting task parallelism on Intel multicore platformcs.
+\item \href{https://www.cilkplus.org}{Cilk Plus} adds simple language extensions to the C and C++languages to express task and data parallelism.
+\item Intrinsics for SIMD instructions allow to take full advantage of Intel Advanced Vector Extensions what cannot always be easily achieved due to limitations of programming languages and compilers. They all programmers to write constructs that look like C/C++ functions calls corresponding to actual SIMD instructions.
+\item SDLT (SIMD Data Layout Template) is a C++11 template library which provides containers with SIMD-friendly data layouts.
+\end{itemize}
+\subsection{Conclusion}
+\label{sec-5-3}
+\begin{itemize}
+\item They compare the speedup of the different implementation against sequential version of code. Depend on whether it is data parallel or task parallel, the performance varys between those librarie
+\end{itemize}
+\section{Parallelization of stochastic bounds for Markov chains on multicore and manycore platforms \cite{bylina18_paral_stoch_bound_markov_chain}}
+\label{sec-6}
+Demonstrates the methodology for parallelizing of finding stochastic bounds for Markov chains on multicore and manycore platformcs
+\begin{itemize}
+\item involve a lot of irregular memory access.
+\item using OpenMP(for loop parallelism) and Cilk Plus (for task-based parallelism)
+\item compare the execution time and scalability
+\end{itemize}
+
+\subsection{Experimental results}
+\label{sec-6-1}
+\begin{itemize}
+\item time
+\item speedup
+\end{itemize}
+\subsection{Conclusion}
+\label{sec-6-2}
+This paper presents the strength of the OpenMP standard for parallelizing with the use of \verb~#pragma omp parallel for~ which is data parallelism in OpenMP.
+
+\subsection{Things to do:}
+\label{sec-6-3}
+need to state clearly what is the main differences between task parallelism and loop (data) parallelism.
+
+\section{A taxonomy of task-based parallel programming technologies for high-performance computing \cite{thoman18_taxon_task_based_paral_progr}}
+\label{sec-7}
+
+Provide an initial task-focused taxonomy for HPC technologies, which covers programming interface and runtime mechanisms.
+
+\subsection{Introduction}
+\label{sec-7-1}
+\begin{itemize}
+\item In HPC domain, loop-based and message-passing paradigms are dominant. We specifically aim to categorize task-based parallelism technologies which are in use in HPC
+\item Definition of task: a sequence of instructions within a program that can be processed concurrently with other tasks in the same program.
+\item Several languages are common in HPC domain:
+\begin{enumerate}
+\item Cilk
+\item OpenMP
+\item TBB
+\item Qthreads
+\item Argobots
+\item StarGPU
+\item Chapel
+\item X10
+\item HPX
+\item Charm++
+\end{enumerate}
+
+\item Each task-based environment has two central components:
+\begin{enumerate}
+\item programming interface
+\item runtime system
+\end{enumerate}
+\end{itemize}
+
+
+
+
+\section{Hybridworkstealingoflocality-flexibleandcancelabletasksfortheAPGAS library  \cite{posner18_hybrid_work_steal_local_flexib}}
+\label{sec-8}
+\subsection{Abstract}
+\label{sec-8-1}
+\begin{itemize}
+\item parallel programs should be albe to deal with both shared memory and distributed memory
+\item propose a hybrid work stealing scheme, which combines the lifeline-based variant of distributed task pools with the node-internal load balancing of Java's Fork/Join framework.
+\item \href{http://x10-lang.org/releases/apgas-release-100.html}{APGAS} library for Java, which is a branch of the \href{http://x10-lang.org}{X10} project.
+\end{itemize}
+\section{Pythonacceleratorsforhigh-performancecomputing \cite{marowka17_python_accel_high_perfor_comput}}
+\label{sec-9}
+\subsection{Abstract}
+\label{sec-9-1}
+\begin{itemize}
+\item python is popular and is slow; python community drive the effort to improve the performance of it.
+\item focus on specific promised solution that aim to provide high-performance and performance portability for python applications, specially \href{http://numba.pydata.org}{Numba}.
+\end{itemize}
+\subsection{Python accelerators}
+\label{sec-9-2}
+A few popular solutions that enhance python's performance
+\begin{itemize}
+\item Numpy
+\item SciPy, extends the functionality of NumPy
+\item PyPy, a just-in-time compiler and interpreter for Python. It aims to provide faster efficient and compatible alternative implementation of Python language.
+\item Cython, enabling decarations of static typing to functions, variables, and classes, allows C code to be generated once and then compiles with C/C++ compilers to produce efficient C code.
+\item Numexpr, a module which accelerate evaluations of a numerical expression operation on NumPy.
+\end{itemize}
+
+\subsection{Numba in a nutshell}
+\label{sec-9-3}
+\subsection{Test case: matrix-matrix multiplication}
+\label{sec-9-4}
+
+\section{Actor model of Anemone functional language \cite{batko18_actor_model_anemon_funct_languag}}
+\label{sec-10}
+\subsection{Abstract}
+\label{sec-10-1}
+not be able to download yet
+\section{A process calculus for parallel and distributed programming in Haskell \cite{bloecker18_pardis}}
+\label{sec-11}
+\subsection{Abstract}
+\label{sec-11-1}
+\begin{itemize}
+\item parallel programming and distributed programming is hard to implement, result in non-deterministic program behaviour.
+\item gap between model and implementation
+\item propose a fully determinisitc process calculus for parallel and distributed programming and implement it as a domain-specific language in Haskell to address these problems.
+\item achieve correctness guarantees regarding process composition at compile time through Haskell's type system.
+\item Their result could be used as a high-level tool to implement parallel and distributed programs.
+\end{itemize}
+
+(to read)
+\section{Function portability of molecular dynamics on heterogeneous parallel architectures with OpenCL  \cite{halver18_funct_portab_molec_dynam_heter}}
+\label{sec-12}
+\subsection{Abstract}
+\label{sec-12-1}
+\begin{itemize}
+\item evaluate latency, data transfer, memory access characterisitcs of parallel compute intense work
+\item data layout, for which the access of structure-of-arrays shows best performance in most cases.
+\item performance portability is a problem since various architectures strongly depend on specific vectorization optimization.
+\end{itemize}
+
+\subsection{Conclusion}
+\label{sec-12-2}
+\begin{itemize}
+\item One of the main goals of the present work was to investigate the performance character- istics of a function portable cell-based MD program on a set of different architectures.
+\item OpenCL has been chosen because it allows for interoperability on different types of architectures. Without any changes of the code it was possible to execute a benchmark on several multi- and many-core systems. Compared severl features:
+\begin{enumerate}
+\item memory bandwidth
+\item core speed
+\item effects of data structure layout (an important issue for GPU architectures)
+\begin{itemize}
+\item arrays-of-structures
+\item structure-of-arrays
+\end{itemize}
+\end{enumerate}
+\item Current their research focus on function portability, A desirable feature would be performance portability
+\end{itemize}
+
+\section{Bibliography}
+\label{sec-13}
+\bibliographystyle{abbrv}
+\bibliography{parallel-numa} 
+% Emacs 25.3.1 (Org mode 8.2.10)
+\end{document}
