@@ -1,0 +1,2 @@
+* Abstract
+- Allocate data among different nodes during initialization 

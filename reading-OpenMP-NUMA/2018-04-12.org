@@ -1,0 +1,281 @@
+
+#+title: 2018-04-12 reading notes for OpenMP NUMA
+
+
+* OpenMP on NUMA architectures
+** Investigating NUMA topologies
+- ~numactl --hardware~ print information on NUMA nodes in the system
+#+BEGIN_SRC sh
+  wzhao@r815:~$ numactl --hardware
+  available: 8 nodes (0-7)
+  node 0 cpus: 0 4 8 12 16 20 24 28
+  node 0 size: 65526 MB
+  node 0 free: 63750 MB
+  node 1 cpus: 32 36 40 44 48 52 56 60
+  node 1 size: 65536 MB
+  node 1 free: 63869 MB
+  node 2 cpus: 2 6 10 14 18 22 26 30
+  node 2 size: 65536 MB
+  node 2 free: 63860 MB
+  node 3 cpus: 34 38 42 46 50 54 58 62
+  node 3 size: 65536 MB
+  node 3 free: 63861 MB
+  node 4 cpus: 3 7 11 15 19 23 27 31
+  node 4 size: 65536 MB
+  node 4 free: 63863 MB
+  node 5 cpus: 35 39 43 47 51 55 59 63
+  node 5 size: 65536 MB
+  node 5 free: 63869 MB
+  node 6 cpus: 1 5 9 13 17 21 25 29
+  node 6 size: 65536 MB
+  node 6 free: 63871 MB
+  node 7 cpus: 33 37 41 45 49 53 57 61
+  node 7 size: 65520 MB
+  node 7 free: 63836 MB
+  node distances:
+  node   0   1   2   3   4   5   6   7 
+  0:  10  16  16  22  16  22  16  22 
+  1:  16  10  22  16  16  22  22  16 
+  2:  16  22  10  16  16  16  16  16 
+  3:  22  16  16  10  16  16  22  22 
+  4:  16  16  16  16  10  16  16  22 
+  5:  22  22  16  16  16  10  22  16 
+  6:  16  22  16  22  16  22  10  16 
+  7:  22  16  16  22  22  16  16  10 
+#+END_SRC
+- ~numactl --show~ prints information on available resources for the process
+#+BEGIN_SRC sh
+  wzhao@r815:~$ numactl --show
+  policy: default
+  preferred node: current
+  physcpubind: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 
+  cpubind: 0 1 2 3 4 5 6 7 
+  nodebind: 0 1 2 3 4 5 6 7 
+  membind: 0 1 2 3 4 5 6 7 
+#+END_SRC
+- use ~lstopo~ show the system topology
+** Optimizing NUMA accesses
+Goal: minimize the number of remote memory accesses as much as possible.
+- how are threads distributed on the system?
+- how is the data distributed on the system?
+- how is work distributed across thread?
+
+** Thread placement in OpenMP
+*** Selecting the right binding strategy depends not only on the topology, but also on the characteristics of the application.
+**** Putting threads far part, on different sockets
+- May improve the aggregated memory bandwidth available to your application.
+- May improve the combined cache size available to your application.
+- May decrease performance of synchronization constructs
+**** Putting threads close together, i.e. on two adjacent cores which possibly shared some caches
+- May improve performance of synchronization constructs
+- May decrease the available memory bandwidth and cache size
+*** Available strategies
+- close: put threads close together on the system
+- spread: place threads far apart from each other
+- master: run on the same place as the master thread
+  
+Assume the following machine:
+#+NAME: fig:numa-example-01
+#+CAPTION: numa-example, 2 sockets, 4 cores per socket, 4 hyper-threads per core
+#+ATTR_ORG: :width 200/250/300/400/500/600
+#+ATTR_LATEX: :width 2.0in
+#+ATTR_HTML: :width 200/250/300/400/500/600px
+[[file:~/Documents/screenshots/numa-nodes.png]]
+*** Abstract names for ~OMP_PLACES~
+- threads: each place corresponds to a single hardware thread on the target machine.
+- cores: each place corresponds to a single core (having one or more hardware threads) on the target machine.
+- sockets: each place corresponds to a single socket (consisting of one or more cores) on the target machine.
+  
+**** Example's objective
+- Separate cores for outer loop and near cores for inner loop
+#+BEGIN_SRC c
+  OMP_PLACES={0,1,2,3}, {4,5,6,7}, ... = {0:4}:8:4
+  #pragma omp parallel proc_bind(spread)
+  #pragma omp parallel proc_bind(close)
+#+END_SRC
+- ~OMP_PLACES~
+- ~proc_bind~
+** Data Placement
+- OpenMP does not provide support for cc-NUMA 
+- Placement comes from the operating system (Operating system dependent)
+- By default, use the "First Touch" placement policy
+  
+*** First touch in action
+**** In serial code, all array element are allocated in the memory of the NUMA node containing the core executing this thread
+#+BEGIN_SRC c
+  double* A;
+  A = (double*) malloc(N * sizeof(double));
+  for (int i = 0; i < N; i++) {
+    A[i] = 0.0;
+   }
+#+END_SRC
+
+#+NAME: fig:numa-serial-init
+#+CAPTION: serial code first toucle example
+[[file:~/Documents/screenshots/numa-serial-init.png]]
+
+**** In parallel code
+#+BEGIN_SRC c
+  double* A;
+  A = (double*)malloc(N * sizeof(double));
+  omp_set_num_threads(2);
+  #pragma omp parallel for
+  for (int i = 0; i < N; i++) {
+    A[i] = 0.0;
+   }
+#+END_SRC
+
+#+NAME: fig:numa-parallel-init
+#+CAPTION: parallel code first touch example
+[[file:~/Documents/screenshots/numa-parallel-init.png]]
+
+** Memory and thread placement in Linux
+~numactl~ command line tool to investigate and handle NUMA under Linux
+- ~numactl --cpunodebind 0,1,2 ./a.out~, only use cores of NUMA node 0-2 to execute a.out
+- ~numactl --physcpubind 0-17 ./a.out~, only use cores 0-17 to execute a.out.
+- ~numactl --membind 0,3 ./a.out~, only use memory of NUMA node 0 and 3 to execute a.out.
+- ~numactl --interleave 0-3 ./a.out~, distribute memory pages on NUMA nodes 0-3 in a round-robin fashion, overwrite first-touch policy.
+
+~libnuma~ library of NUMA control
+- ~void *numa_alloc_local(size_t size)~, allocate memory on the local NUMA node.
+- ~void *numa_alloc_onnode(size_t size, int node)~, allocate memory on NUMA node node.
+- ~void *numa_alloc_interleaved(size_t size)~ allocate memory distributed round-robin on all NUMA nodes.
+- ~int numa_move_pages(int pid, unsigned long count, void **pages, const int *nodes, int *status, int flags)~, migrate memory pages at runtime to different NUMA nodes.
+* OpenMP Extension for Explicit Task Allocation on NUMA Architecture cite:10.1007/978-3-319-45550-1_7
+** Abstract
+In this paper, we propose an extension for the OpenMP task construct to specify the loca- tion of tasks to exploit the locality in an explicit manner. The prototype compiler is implemented based on GCC.
+
+** Introduction
+- In the early version of OpenMP, the programming model had focused on data parallelism described by loop work sharing, which requires global synchro- nization in a parallel region. When the number of cores increases, synchronization overhead is getting bigger, and load imbalance among cores causes a significant performance drop.
+- In OpenMP 4.0, task dependency can be specified using the depend clause in the task construct. Task parallelism can exploit potential parallelism in irregular applications. Task dependency can reduce synchronization overhead because it generates fine-grain synchronization between dependent tasks.
+- To exploit memory bandwidth with NUMA architectures, OpenMP provides thread affinity options.
+  - For OpenMP4.5, the ~proc_bind~ clause is discussed to specify a thread affinity scheme for a parallel region. These can be helpful to improve data locality when performing data parallelism with loop work sharing.
+  - However, the current specification lacks functionality to do the same thing for task parallelism.
+  #+BEGIN_COMMENT
+  This means I need to decide which parallel model I need to use for SCF kNN algorithm.
+  #+END_COMMENT
+
+* OpenMP task scheduling strategies for multicore NUMA systems cite:olivier12_openm_task_sched_strat_multic_numa_system
+** Abstract
+- Efficient scheduling of tasks on modern multi-socket multicore shared memory system requires consideration of shared caches and NUMA characteristics.
+- They extendent the open source Qthreads threadling library to implement different scheduler designs, accepting OpenMP programs through the ROSE compiler.
+
+** Introduction
+- What is task-parallel programming models? what are the benefits?
+- Efficient task scheduler
+  - exploit cache and memory locality
+  - maintain load balance
+  - minimize overhead costs
+
+  Trade off between them: 
+  - However, load balancing operations can also contribute to overhead costs. Load balancing operations between sockets increase memory access time due to more cold cache misses and more high-latency remote memory accesses.
+*** Their contributions
+**** A hierarchical scheduling strategy targeting modern multi-socket multicore shared memory systems.
+- NUMA architecture is not well supported by work-stealing scheduler with one queue per core or by centralized scheduler.
+- work-stealing, a scheduling strategy for multithreaded computer programs. It solved the problem of executing a dynamically multithreaded commputation, one that can "spawn" new threads of execution, on a statically multithreaded computer, with a fixed number of processors. 
+  See cite:blumofe99_sched_multit_comput_by_work_steal, a important paper.
+  Also, see paper cite:beaumont06_centr for comparsion.
+
+**** A detailed performance study on a current generation multi-socket multicore Intel system
+**** Additional performance evaluation on a two-socket multicore AMD system and a 192-processor SGI Altix
+
+** Background
+- OpenMP 3.0 explicit task parallelism to complement its exisiting data parallel constructs. 
+- ROSE compiler is used for performing syntactic and semantic analysis on OpenMP directives, transforming them into run-time library calls in the intermediate program.The ROSE common OpenMP run-time library maps the run-time calls to function in the Qthreads library.
+- Qthreads vs Pthread, why Qthreads is needed in their paper?
+  - Each worker pthread is pinned to a processor core and assigned to a locality domain, termed a shepherd.
+  - what is FEB operation, a contex switch is triggered.
+- "We used the Qthreads queueing implementation as a starting point for our scheduling work."
+- "We implement OpenMP threads as worker pthreads. Unlike many OpenMP implementations, default loop scheduling is self-guided rather than static."
+- "For task par- allelism, we implement each OpenMP task as a qthread."
+- "We used the Qthreads FEB synchronization mechanism as a base layer upon which to implement taskwait and barrier sychronization."
+
+** Conclustion
+- Their MTS scheduler, combination of shared LIFO queues and work stealing maintains good load balance while supporting effective cache performance and limiting overhead cost. Notice: pure work stealing has been shown to provide the least variability in performance which is an important consideration for distributed applications in which barriers cause the application to run at the speed of the slowest worker.
+- One challenge posed by their hierarchical scheduling strategy is the need for an efficient queue supporting concurrent access on both end, since works within a shepherd share a queue. (Lock-free dequeue).  
+* OpenMP overview
+** OpxenMp Compilation process
+- Annotated source code -> OpenMP compiler -> parallel object code
+- Compiler can also generate sequential object cde
+- compiler front end: parse OpenMP directives, correctness checks
+- compiler back end: replace constructs by calls to runtime library, change structure of program
+** Notation
+*** Syntax
+- directive: ~pragma~ statement
+- runtime library routine: function defined in ~omp.h~
+- structured block: simgle statement or compound statement with a single entry at the top and a single exit at the bottom.
+- clause: modifies a directive's behavior
+- Environment variable: defined outside the program
+*** Notation (OpenMP)  
+- master thread: original thread
+- slave thread: all additional threads
+- team: master thread + slave thread
+*** Scope of Variables
+- shared scope
+  variable can be accessed by all threads in team, variables declared outside a structured block following a parallel directive
+- private scope
+  variable can be accessed by a single thread, variable declared inside a structured block following a parallel directive.
+**** Handout only: scope of variables
+- private variables are uninitialized
+- initialize variables with value from master thread: ~firstprivate~
+- ~default(none)~ requires programmer to specify visibility for all variables implicitly, good practice.
+*** ~parallel for~ directive
+- run loop interations in parallel
+- shortcut: ~#pragma omp parallel for~
+- loop iterations must be data-independent
+- OpenMP must be able to determine the number of iterations before the loop is executed.
+- Mapping of iterations to threads controlled by ~schedule~ clause
+  - schedule(static [, chunksize]): block of chunksize iterations statically assigned to thread
+  - schedule(dynamic [, chunksize]): thread reserves chunksize iterations from queue
+  - schedule(guided [, chunksize]): same as dynamnic, but chunk size starts big and gets smaller and smaller, until it reaches chunksize.
+  - schedule(runtime): scheduling behavior determined by environment variable
+*** ~reduce~ clause
+*** ~critical~ sections
+*** ~Atomic~ statements
+*** More synchronization constructs
+- ~#pragma omp barrier~: wait until all threads arrive
+- ~#pragma omp for nowait~: remove implicit barrier after for loop (also exists for other directives)
+- ~#pragma omp master~: only executed by master thread
+- ~#pragma omp single~: only executed by one thread
+- Sections: define a number of blocks, every thread executes one block
+- Locks: ~omp_init_lock()~, ~omp_set_lock()~, ~omp_unset_lock()~,...
+
+** ForestGOMP: NUMA with OpenMP
+- Objectives and motivations
+  1) Keep buffer and threads operating on them on the same NUMA node (reducing contention)
+  2) Processor level: group threads sharing data intensively(improve cache usage)
+- Triggers for scheduling
+  1) Allocation/deallocation of resources
+  2) Processor becomes idle
+  3) Change of hardware counters (e.g., cache miss, remote acess rate)
+*** BubbleSched: hierarchical buble-based thread scheduler
+- Runqueue for different hierarchical levels
+- Bubble: group of threads sharing data or heavy synchronization
+- Responsible for scheduling threads
+*** Mami: NUMA-aware memory manager
+- API for memory allocation 
+- Can migrate memory to a different NUMA node
+- Support next touch policy: migrate data to NUMA node of accessing thread.
+  - Buffers are marked as migrate-on-next-touch when a thread migration is expected
+  - Buffer is relocated if thread thouches buffer that is not located on local node
+  - Implemented in kernel mode
+- ForestGOMP: Mami-aware OpenMP Runtime
+  - Mami attaches memory hints: e.g., which regions are access frequently by a certain thread
+  - Initial distribution: put thread and corresponding memory on same NUMA node (local accesses)
+  - Handle idleness: steal threads from local core, then from different NUMA node (also migrates memory; prefers threads with less memory)
+  - Two levels of distribution: memory-aware, then cache-aware
+* ForestGOMP: an efficient OpenMP environment for NUMA architectures cite:broquedis10_fores
+
+* [[https://yunmingzhang.wordpress.com/2018/01/20/openmp-numa-and-libnuma-note/][Blog about OpenMP numa and libnuma note]]
+** [[http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-affinity.html][Affinity control outside OpenMP]], a quick introduction
+* [[http://man7.org/linux/man-pages/man3/numa.3.html][Linux libnuma]]
+* A blog shows what attribute need to monitor for NUMA node performance analysis
+[[http://www.acceleware.com/blog/real-time-NUMA-node-performance-analysis-using-intel-performance-counter-monitor][Real-Time NUMA Node Performance Analysis Using Intel Performance Counter Monitor]]
+
+* ForestGOMP
+  
+
+
+* Bibliography
+bibliographystyle:abbrv
+bibliography:../parallel-numa.bib
