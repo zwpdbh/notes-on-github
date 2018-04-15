@@ -141,60 +141,8 @@ Assume the following machine:
 - ~void *numa_alloc_onnode(size_t size, int node)~, allocate memory on NUMA node node.
 - ~void *numa_alloc_interleaved(size_t size)~ allocate memory distributed round-robin on all NUMA nodes.
 - ~int numa_move_pages(int pid, unsigned long count, void **pages, const int *nodes, int *status, int flags)~, migrate memory pages at runtime to different NUMA nodes.
-* OpenMP Extension for Explicit Task Allocation on NUMA Architecture cite:10.1007/978-3-319-45550-1_7
-** Abstract
-In this paper, we propose an extension for the OpenMP task construct to specify the loca- tion of tasks to exploit the locality in an explicit manner. The prototype compiler is implemented based on GCC.
-
-** Introduction
-- In the early version of OpenMP, the programming model had focused on data parallelism described by loop work sharing, which requires global synchro- nization in a parallel region. When the number of cores increases, synchronization overhead is getting bigger, and load imbalance among cores causes a significant performance drop.
-- In OpenMP 4.0, task dependency can be specified using the depend clause in the task construct. Task parallelism can exploit potential parallelism in irregular applications. Task dependency can reduce synchronization overhead because it generates fine-grain synchronization between dependent tasks.
-- To exploit memory bandwidth with NUMA architectures, OpenMP provides thread affinity options.
-  - For OpenMP4.5, the ~proc_bind~ clause is discussed to specify a thread affinity scheme for a parallel region. These can be helpful to improve data locality when performing data parallelism with loop work sharing.
-  - However, the current specification lacks functionality to do the same thing for task parallelism.
-  #+BEGIN_COMMENT
-  This means I need to decide which parallel model I need to use for SCF kNN algorithm.
-  #+END_COMMENT
-
-* OpenMP task scheduling strategies for multicore NUMA systems cite:olivier12_openm_task_sched_strat_multic_numa_system
-** Abstract
-- Efficient scheduling of tasks on modern multi-socket multicore shared memory system requires consideration of shared caches and NUMA characteristics.
-- They extendent the open source Qthreads threadling library to implement different scheduler designs, accepting OpenMP programs through the ROSE compiler.
-
-** Introduction
-- What is task-parallel programming models? what are the benefits?
-- Efficient task scheduler
-  - exploit cache and memory locality
-  - maintain load balance
-  - minimize overhead costs
-
-  Trade off between them: 
-  - However, load balancing operations can also contribute to overhead costs. Load balancing operations between sockets increase memory access time due to more cold cache misses and more high-latency remote memory accesses.
-*** Their contributions
-**** A hierarchical scheduling strategy targeting modern multi-socket multicore shared memory systems.
-- NUMA architecture is not well supported by work-stealing scheduler with one queue per core or by centralized scheduler.
-- work-stealing, a scheduling strategy for multithreaded computer programs. It solved the problem of executing a dynamically multithreaded commputation, one that can "spawn" new threads of execution, on a statically multithreaded computer, with a fixed number of processors. 
-  See cite:blumofe99_sched_multit_comput_by_work_steal, a important paper.
-  Also, see paper cite:beaumont06_centr for comparsion.
-
-**** A detailed performance study on a current generation multi-socket multicore Intel system
-**** Additional performance evaluation on a two-socket multicore AMD system and a 192-processor SGI Altix
-
-** Background
-- OpenMP 3.0 explicit task parallelism to complement its exisiting data parallel constructs. 
-- ROSE compiler is used for performing syntactic and semantic analysis on OpenMP directives, transforming them into run-time library calls in the intermediate program.The ROSE common OpenMP run-time library maps the run-time calls to function in the Qthreads library.
-- Qthreads vs Pthread, why Qthreads is needed in their paper?
-  - Each worker pthread is pinned to a processor core and assigned to a locality domain, termed a shepherd.
-  - what is FEB operation, a contex switch is triggered.
-- "We used the Qthreads queueing implementation as a starting point for our scheduling work."
-- "We implement OpenMP threads as worker pthreads. Unlike many OpenMP implementations, default loop scheduling is self-guided rather than static."
-- "For task par- allelism, we implement each OpenMP task as a qthread."
-- "We used the Qthreads FEB synchronization mechanism as a base layer upon which to implement taskwait and barrier sychronization."
-
-** Conclustion
-- Their MTS scheduler, combination of shared LIFO queues and work stealing maintains good load balance while supporting effective cache performance and limiting overhead cost. Notice: pure work stealing has been shown to provide the least variability in performance which is an important consideration for distributed applications in which barriers cause the application to run at the speed of the slowest worker.
-- One challenge posed by their hierarchical scheduling strategy is the need for an efficient queue supporting concurrent access on both end, since works within a shepherd share a queue. (Lock-free dequeue).  
 * OpenMP overview
-** OpxenMp Compilation process
+** OpenMp Compilation process
 - Annotated source code -> OpenMP compiler -> parallel object code
 - Compiler can also generate sequential object cde
 - compiler front end: parse OpenMP directives, correctness checks
@@ -265,6 +213,69 @@ In this paper, we propose an extension for the OpenMP task construct to specify 
   - Handle idleness: steal threads from local core, then from different NUMA node (also migrates memory; prefers threads with less memory)
   - Two levels of distribution: memory-aware, then cache-aware
 * ForestGOMP: an efficient OpenMP environment for NUMA architectures cite:broquedis10_fores
+* OpenMP task scheduling strategies for multicore NUMA systems cite:olivier12_openm_task_sched_strat_multic_numa_system
+** Abstract
+- Efficient scheduling of tasks on modern multi-socket multicore shared memory system requires consideration of shared caches and NUMA characteristics.
+- They extendent the open source Qthreads threadling library to implement different scheduler designs, accepting OpenMP programs through the ROSE compiler.
+** Introduction
+- What is task-parallel programming models? what are the benefits?
+- Efficient task scheduler
+  - exploit cache and memory locality
+  - maintain load balance
+  - minimize overhead costs
+
+  Trade off between them: 
+  - However, load balancing operations can also contribute to overhead costs. Load balancing operations between sockets increase memory access time due to more cold cache misses and more high-latency remote memory accesses.
+*** Their contributions
+**** A hierarchical scheduling strategy targeting modern multi-socket multicore shared memory systems.
+- NUMA architecture is not well supported by work-stealing scheduler with one queue per core or by centralized scheduler.
+- work-stealing, a scheduling strategy for multithreaded computer programs. It solved the problem of executing a dynamically multithreaded commputation, one that can "spawn" new threads of execution, on a statically multithreaded computer, with a fixed number of processors. 
+  See cite:blumofe99_sched_multit_comput_by_work_steal, a important paper.
+  Also, see paper cite:beaumont06_centr for comparsion.
+
+**** A detailed performance study on a current generation multi-socket multicore Intel system
+**** Additional performance evaluation on a two-socket multicore AMD system and a 192-processor SGI Altix
+
+** Background
+- OpenMP 3.0 explicit task parallelism to complement its exisiting data parallel constructs. 
+- ROSE compiler is used for performing syntactic and semantic analysis on OpenMP directives, transforming them into run-time library calls in the intermediate program.The ROSE common OpenMP run-time library maps the run-time calls to function in the Qthreads library.
+- Qthreads vs Pthread, why Qthreads is needed in their paper?
+  - Each worker pthread is pinned to a processor core and assigned to a locality domain, termed a shepherd.
+  - what is FEB operation, a contex switch is triggered.
+- "We used the Qthreads queueing implementation as a starting point for our scheduling work."
+- "We implement OpenMP threads as worker pthreads. Unlike many OpenMP implementations, default loop scheduling is self-guided rather than static."
+- "For task par- allelism, we implement each OpenMP task as a qthread."
+- "We used the Qthreads FEB synchronization mechanism as a base layer upon which to implement taskwait and barrier sychronization."
+
+** Conclustion
+- Their MTS scheduler, combination of shared LIFO queues and work stealing maintains good load balance while supporting effective cache performance and limiting overhead cost. Notice: pure work stealing has been shown to provide the least variability in performance which is an important consideration for distributed applications in which barriers cause the application to run at the speed of the slowest worker.
+- One challenge posed by their hierarchical scheduling strategy is the need for an efficient queue supporting concurrent access on both end, since works within a shepherd share a queue. (Lock-free dequeue).  
+* OpenMP Extension for Explicit Task Allocation on NUMA Architecture cite:10.1007/978-3-319-45550-1_7
+** Abstract
+In this paper, we propose an extension for the OpenMP task construct to specify the loca- tion of tasks to exploit the locality in an explicit manner. The prototype compiler is implemented based on GCC.
+
+** Introduction
+- In the early version of OpenMP, the programming model had focused on data parallelism described by loop work sharing, which requires global synchro- nization in a parallel region. When the number of cores increases, synchronization overhead is getting bigger, and load imbalance among cores causes a significant performance drop.
+- In OpenMP 4.0, task dependency can be specified using the depend clause in the task construct. Task parallelism can exploit potential parallelism in irregular applications. Task dependency can reduce synchronization overhead because it generates fine-grain synchronization between dependent tasks.
+- To exploit memory bandwidth with NUMA architectures, OpenMP provides thread affinity options.
+  - For OpenMP4.5, the ~proc_bind~ clause is discussed to specify a thread affinity scheme for a parallel region. These can be helpful to improve data locality when performing data parallelism with loop work sharing.
+  - However, the current specification lacks functionality to do the same thing for task parallelism.
+  #+BEGIN_COMMENT
+  This means I need to decide which parallel model I need to use for SCF kNN algorithm.
+  #+END_COMMENT
+- An OpenMP extension to describe NUMA-aware task allocation explicitly. The extension specifies the data that the target task would access. 
+
+** Related work
+- Some NUMA-aware task scheduler based on work-stealing, see cite:vikranth13_topol_aware_task_steal_chip,DBLP:journals/corr/Tahan14,drebes14_topol_aware_depen_aware_sched,olivier12_openm_task_sched_strat_multic_numa_system    
+- Manual data distribution among NUMA nodes and their NUMA-aware task scheduling algorithm in runtime. cite:muddukrishna15_local_aware_task_sched_data
+- their is similar, also requeires explicit data distribution. However, task allocation is done explicityly using the extended OpenMP task construct.
+
+** OpenMP Extension for NUMA-Aware Task Allocation
+Generally, improving data locality and reducing remote memory access can exploit potential memory performance on the NUMA architecture. The same is true for task parallelism in OpenMP. A task should be executed on the NUMA node where its processing data is allocated to get the highest memory bandwidth. They propose a new clause named ~node_bind~ for OpenMP task construct. It specifies a NUMA node that the target task should be scheduled.
+
+*** Overview
+
+
 
 * [[https://yunmingzhang.wordpress.com/2018/01/20/openmp-numa-and-libnuma-note/][Blog about OpenMP numa and libnuma note]]
 ** [[http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-affinity.html][Affinity control outside OpenMP]], a quick introduction
@@ -272,9 +283,23 @@ In this paper, we propose an extension for the OpenMP task construct to specify 
 * A blog shows what attribute need to monitor for NUMA node performance analysis
 [[http://www.acceleware.com/blog/real-time-NUMA-node-performance-analysis-using-intel-performance-counter-monitor][Real-Time NUMA Node Performance Analysis Using Intel Performance Counter Monitor]]
 
-* ForestGOMP
-  
 
+  
+* Summary 
+1) What is data parallelism and what is task parallelism? 
+   A parallel program is composed of simultaneously executing processes. Problem decomposition relates to the way in which the constituent processes are formulated
+   - Task parallelism, A task-parallel model focuses on processes, or threads of execution. These processes will often be behaviourally distinct, which emphasises the need for communication. Task parallelism is a natural way to express message-passing communication. 
+     Task parallelism is usually classified as MIMD/MPMD or MISD
+   - Data parallelism, A data-parallel model focuses on performing operations on a data set, typically a regularly structured array. A set of tasks will operate on this data, but independently on disjoint partitions.
+     Data parallelism is usually classified as MIMD/SPMD or SIMD
+     [[file:~/Documents/screenshots/classification-parallel.png]]
+2) How does each of them related to OpenMP
+
+3) What's their current status for using under NUMA architectures?
+4) Which algorithm do I need to use, data/task parallelism or both?
+
+** Operating system concepts
+*** work-stealing cite:blumofe99_sched_multit_comput_by_work_steal
 
 * Bibliography
 bibliographystyle:abbrv

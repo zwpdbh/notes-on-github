@@ -317,3 +317,85 @@ pages="89--101",
 abstract="Most modern HPC systems consist of a number of cores grouped into multiple NUMA nodes. The latest Intel processors have multiple NUMA nodes inside a chip. Task parallelism using OpenMP dependent tasks is a promising programming model for many-core architecture because it can exploit parallelism in irregular applications with fine-grain synchronization. However, the current specification lacks functionality to improve data locality in task parallelism. In this paper, we propose an extension for the OpenMP task construct to specify the location of tasks to exploit the locality in an explicit manner. The prototype compiler is implemented based on GCC. The performance evaluation using the KASTORS benchmark shows that our approach can reduce remote page access. The Jacobi kernel using our approach shows 3.6 times better performance than GCC when using 36 threads on a 36-core, 4-NUMA node machine.",
 isbn="978-3-319-45550-1"
 }
+
+
+@article{drebes14_topol_aware_depen_aware_sched,
+  author =	 {Andi Drebes and Karine Heydemann and Nathalie Drach
+                  and Antoniu Pop and Albert Cohen},
+  title =	 {Topology-Aware and Dependence-Aware Scheduling and
+                  Memory Allocation for Task-Parallel Languages},
+  journal =	 {ACM Transactions on Architecture and Code
+                  Optimization},
+  volume =	 11,
+  number =	 3,
+  pages =	 {1-25},
+  year =	 2014,
+  doi =		 {10.1145/2641764},
+  url =		 {https://doi.org/10.1145/2641764},
+  DATE_ADDED =	 {Sun Apr 15 11:16:48 2018},
+}
+
+
+@article{DBLP:journals/corr/Tahan14,
+  author    = {Oussama Tahan},
+  title     = {Towards Efficient OpenMP Strategies for Non-Uniform Architectures},
+  journal   = {CoRR},
+  volume    = {abs/1411.7131},
+  year      = {2014},
+  url       = {http://arxiv.org/abs/1411.7131},
+  archivePrefix = {arXiv},
+  eprint    = {1411.7131},
+  timestamp = {Wed, 07 Jun 2017 14:42:29 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/Tahan14},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{rostami14_preser_non_memor_archit_charac,
+  author =	 {M. Ali Rostami and H. Martin B{\"u}cker},
+  title =	 {Preservation of Non-uniform Memory Architecture
+                  Characteristics when Going from a Nested OpenMP to a
+                  Hybrid MPI/OpenMP Approach},
+  booktitle =	 {Proceedings of the 4th International Conference on
+                  Simulation and Modeling Methodologies, Technologies
+                  and Applications},
+  year =	 2014,
+  pages =	 {nil},
+  doi =		 {10.5220/0005110902860291},
+  url =		 {https://doi.org/10.5220/0005110902860291},
+  DATE_ADDED =	 {Sun Apr 15 11:19:40 2018},
+  month =	 {-},
+}
+
+
+@article{vikranth13_topol_aware_task_steal_chip,
+  author =	 {B. Vikranth and Rajeev Wankar and C. Raghavendra
+                  Rao},
+  title =	 {Topology Aware Task Stealing for On-Chip Numa
+                  Multi-Core Processors},
+  journal =	 {Procedia Computer Science},
+  volume =	 18,
+  number =	 {nil},
+  pages =	 {379-388},
+  year =	 2013,
+  doi =		 {10.1016/j.procs.2013.05.201},
+  url =		 {https://doi.org/10.1016/j.procs.2013.05.201},
+  DATE_ADDED =	 {Sun Apr 15 11:31:45 2018},
+}
+
+@article{muddukrishna15_local_aware_task_sched_data,
+  author =	 {Ananya Muddukrishna and Peter A. Jonsson and Mats
+                  Brorsson},
+  title =	 {Locality-Aware Task Scheduling and Data Distribution
+                  for Openmp Programs on Numa Systems and Manycore
+                  Processors},
+  journal =	 {Scientific Programming},
+  volume =	 2015,
+  number =	 {nil},
+  pages =	 {1-16},
+  year =	 2015,
+  doi =		 {10.1155/2015/981759},
+  url =		 {https://doi.org/10.1155/2015/981759},
+  DATE_ADDED =	 {Sun Apr 15 11:34:13 2018},
+}
+
+
