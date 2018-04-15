@@ -153,6 +153,7 @@ Assume the following machine:
 - runtime library routine: function defined in ~omp.h~
 - structured block: simgle statement or compound statement with a single entry at the top and a single exit at the bottom.
 - clause: modifies a directive's behavior
+- Directives combined with code form a construct, which is a pattern to accomplish something. Such as a parallel construct is a ~parallel~ directive, with its optional clauses, and any code to be executed.
 - Environment variable: defined outside the program
 *** Notation (OpenMP)  
 - master thread: original thread
@@ -273,33 +274,150 @@ In this paper, we propose an extension for the OpenMP task construct to specify 
 ** OpenMP Extension for NUMA-Aware Task Allocation
 Generally, improving data locality and reducing remote memory access can exploit potential memory performance on the NUMA architecture. The same is true for task parallelism in OpenMP. A task should be executed on the NUMA node where its processing data is allocated to get the highest memory bandwidth. They propose a new clause named ~node_bind~ for OpenMP task construct. It specifies a NUMA node that the target task should be scheduled.
 
-*** Overview
+(to be continued)
 
 
-
-* [[https://yunmingzhang.wordpress.com/2018/01/20/openmp-numa-and-libnuma-note/][Blog about OpenMP numa and libnuma note]]
-** [[http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-affinity.html][Affinity control outside OpenMP]], a quick introduction
 * [[http://man7.org/linux/man-pages/man3/numa.3.html][Linux libnuma]]
+** Description
+*** It offers a programming interface to the NUMA policy. Available policies are:
+- page interleaving (allocated in a round-robin fashion from all)
+- subset of the nodes on the system
+- preferred node allocation (preferably allocate on a particular node)
+- local allocation (allocate on the node on which the task is currently executing)
+- allocation only on specific nodes
+
+*** Note:
+The default memory allocation policy for tasks and all memory range is local allocation.
+For setting a specific policy globally for all memory allocations in a process and its children, it is easiest to start it with the [[http://man7.org/linux/man-pages/man8/numactl.8.html][numactl]] utility.
+All numa memory allocation policy only takes effect when a page is actually faulted into the address space of a process by accessing it. (First touch policy)
+
+* Links related with C++ and libnuma
+** [[https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/][C++11 threads, affinity and hyperthreading]]
+** [[https://scicomp.stackexchange.com/questions/2028/portable-multicore-numa-memory-allocation-initialization-best-practices][Portable multicore/NUMA memory allocation/initialization best practices]]
+** [[http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-affinity.html][Affinity control outside OpenMP]]
+** [[https://yunmingzhang.wordpress.com/2018/01/20/openmp-numa-and-libnuma-note/][Blog about OpenMP numa and libnuma note]]
+** [[https://stackoverflow.com/questions/23142702/how-to-instantiate-c-objects-on-specific-numa-memory-nodes][How to instantiate C++ objects on specific NUMA memory nodes?]]
+*** [[http://en.cppreference.com/w/cpp/language/new][new expression]]
+
 * A blog shows what attribute need to monitor for NUMA node performance analysis
 [[http://www.acceleware.com/blog/real-time-NUMA-node-performance-analysis-using-intel-performance-counter-monitor][Real-Time NUMA Node Performance Analysis Using Intel Performance Counter Monitor]]
 
 
   
 * Summary 
-1) What is data parallelism and what is task parallelism? 
+** What is data parallelism and what is task parallelism? 
    A parallel program is composed of simultaneously executing processes. Problem decomposition relates to the way in which the constituent processes are formulated
    - Task parallelism, A task-parallel model focuses on processes, or threads of execution. These processes will often be behaviourally distinct, which emphasises the need for communication. Task parallelism is a natural way to express message-passing communication. 
      Task parallelism is usually classified as MIMD/MPMD or MISD
    - Data parallelism, A data-parallel model focuses on performing operations on a data set, typically a regularly structured array. A set of tasks will operate on this data, but independently on disjoint partitions.
      Data parallelism is usually classified as MIMD/SPMD or SIMD
      [[file:~/Documents/screenshots/classification-parallel.png]]
-2) How does each of them related to OpenMP
 
-3) What's their current status for using under NUMA architectures?
-4) Which algorithm do I need to use, data/task parallelism or both?
-
+** How does each of them related to OpenMP
+** What's their current status for using OpenMP under NUMA architectures?
+** Which algorithm do I need to use, data/task parallelism or both?
 ** Operating system concepts
 *** work-stealing cite:blumofe99_sched_multit_comput_by_work_steal
+** OpenMP affinity
+*** Concepts
+- OpenMP affinity consists of a ~proc_bind~ policy and a specification of places. It enables users to bind computations on specific places. The placement will hold for the duration of the parallel region.
+  - place refers to processors which could be cores, or hardware threads, sockets.
+- However, the runtime is free to migrate the OpenMP threads to different cores (hardware thread, or sockets) prescribed within a given place, if two or more cores(hardware threads, sockets) have been assigned to a given place.
+- ~OMP_PLACES~ specify the places, witout setting it, OpenMP runtime will distribute and bind threads using the entire range of processors for the OpenMP program, based on the policy specified by ~proc_bind~.
+- SMT(Simultaneous Multi-Threading)
+- HW-thread, hardware thread
+- OpenMP places use the processor number to designate binding locations.
+- Threads of a team are positioned onto places in a compact manner, a scattered distribution, or onto a master's place, by setting ~proc_bind~ clause to /close/, /spread/, or /master/
+*** The ~proc_bind~ clause
+- picture of hierarchy: socket -> physical core -> hardware thread
+- If a machine has 2 sockets, each of them has 4 cores, and each core has 2 hardware  threads. Then the ~OMP_PLACES~ variable could be set like:
+~OMP_PLACES="{0,1},{2,3},{4,5},{6,7},{8,9},{10,11},{12,13},{14,15}"\~  or equivalently ~OMP_PLACES="{0:2}:8:2"
+
+**** Spread affinity policy
+(assuming the ~OMP_PLACES~ is the same)
+When the number of threads is less than or equal to the number of places in the parent' place partition. Such as:
+~#pragma omp parallel proc_bind(spread) num_threads(4)~
+1) If the master thread is initially started on p0, the following placement of threads will be applied in the parallel region:
+   - thread 0 executes on p0 with the place partition p0,p1
+   - thread 1 executes on p2 with the place partition p2,p3
+   - thread 2 executes on p4 with the place partition p4,p5
+   - thread 3 executes on p6 with the place partition p6,p7
+2) If the master thread would initially be started on p2:
+   - thread 0 executes on p2 with the place partition p2,p3
+   - thread 1 executes on p4 with the place partition p4,p5
+   - thread 2 executes on p6 with the place partition p6,p7
+   - thread 3 executes on p0 with the place partition p0,p1
+
+When the number of thread is greater than the number of places in the parent's place partition.
+~#pragma omp parallel num_threads(16) proc_bind(spread)~
+1) If the master thread is initially started on p0:
+   - threads 0,1 execute on p0 with the place partition p0
+   - threads 2,3 execute on p1 with the place partition p1
+   - threads 4,5 execute on p2 with the place partition p2
+   - threads 6,7 execute on p3 with the place partition p3
+   - threads 8,9 execute on p4 with the place partition p4
+   - threads 10,11 execute on p5 with the place partition p5
+   - threads 12,13 execute on p6 with the place partition p6
+   - threads 14,15 execute on p7 with the place partition p7
+2) If the master thread is initially started on p2:
+   - threads 0,1 execute on p2 with the place partition p2
+   - threads 2,3 execute on p3 with the place partition p3
+   - threads 4,5 execute on p4 with the place partition p4
+   - threads 6,7 execute on p5 with the place partition p5
+   - threads 8,9 execute on p6 with the place partition p6
+   - threads 10,11 execute on p7 with the place partition p7
+   - threads 12,13 execute on p0 with the place partition p0
+   - threads 14,15 execute on p1 with the place partition p1
+
+**** Close affinity policy
+When the number of threads is less than or equal to the number of places in parent's place partition:
+~#pragma omp parallel proc_bind(close) num_threads(4)~
+1) If the master thread is initially started on p0, the following placement of threads will be applied in the ~parallel~ region:
+   - thread 0 executes on p0 with the place partition p0-p7
+   - thread 1 executes on p1 with the place partition p0-p7
+   - thread 2 executes on p2 with the place partition p0-p7
+   - thread 3 executes on p3 with the place partition p0-p7
+2) If the master starts on p2:
+   - thread 0 executes on p2 with the place partition p0-p7
+   - thread 1 executes on p3 with the place partition p0-p7
+   - thread 2 executes on p4 with the place partition p0-p7
+   - thread 3 executes on p5 with the place partition p0-p7
+
+When the number of thread is greater than the number of places in parent's place partition:
+~#pragma omp parallel num_threads(16) proc_bind(close)~
+1) If master is on p0
+   - threads 0,1 execute on p0 with the place partition p0-p7
+   - threads 2,3 execute on p1 with the place partition p0-p7
+   - threads 4,5 execute on p2 with the place partition p0-p7
+   - threads 6,7 execute on p3 with the place partition p0-p7
+   - threads 8,9 execute on p4 with the place partition p0-p7
+   - threads 10,11 execute on p5 with the place partition p0-p7
+   - threads 12,13 execute on p6 with the place partition p0-p7
+   - threads 14,15 execute on p7 with the place partition p0-p7
+2) If the master is initially started on p2
+   - threads 0,1 execute on p2 with the place partition p0-p7
+   - threads 2,3 execute on p3 with the place partition p0-p7
+   - threads 4,5 execute on p4 with the place partition p0-p7
+   - threads 6,7 execute on p5 with the place partition p0-p7
+   - threads 8,9 execute on p6 with the place partition p0-p7
+   - threads 10,11 execute on p7 with the place partition p0-p7
+   - threads 12,13 execute on p0 with the place partition p0-p7
+   - threads 14,15 execute on p1 with the place partition p0-p7
+
+**** Master affinity policy
+~#pragma omp parallel proc_bind(master) num_threads(4)~
+1) If the master thread is initially running on p0:
+   - threads 0-3 execute on p0 with the place partition p0-p7
+2) If the master thread would initially be started on p2
+   - threads 0-3 execute on p2 with the place partition p0-p7
+**** Questions:
+What is place partition? 
+For example, in a 2 socket system with 8 cores in each socket, and sequential numbering in the socket for the core numbers, the ~OMP_PLACES~ variable would be set to
+"{0:8},{8:8}", using the place syntax {lower_bound:length:stride}, and the default stride is 1.
+
+*** Affinity query function
+- ~omp_get_num_places()~
+- ~omp_get_place_num_procs()~
 
 * Bibliography
 bibliographystyle:abbrv
