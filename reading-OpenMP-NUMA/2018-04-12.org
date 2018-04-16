@@ -692,6 +692,12 @@ For example, in a 2 socket system with 8 cores in each socket, and sequential nu
 
 
 
+** Next plan
+- The OpenMP affinity is about allocating the executing of tasks among different CPUs. But where each CPU access which part of memory is not determined. We need to allocate memory on fixed cores. Such as,
+
+  - Array[0..N] will be allocation among different cores. 
+  - create multiple thread on those cores using OpenMP affinity 
+  - compute the results 
 * Bibliography
 bibliographystyle:abbrv
 bibliography:../parallel-numa.bib
