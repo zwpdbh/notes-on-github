@@ -293,11 +293,282 @@ All numa memory allocation policy only takes effect when a page is actually faul
 
 * Links related with C++ and libnuma
 ** [[https://eli.thegreenplace.net/2016/c11-threads-affinity-and-hyperthreading/][C++11 threads, affinity and hyperthreading]]
+*** Background and introduction
+This post use C+++ threads as the main threading mechanism to demonstrate its points.
+*** Logical CPUs, cores and threads
+- Modern machines are multi-CPU, where these CPUs are divided into sockets and hardware cores. But the OS sees a number of "logical" CPUs that can execute tasks concurrently.
+- To get such information on Linux, run ~cat /proc/cpuinfo~, a summary output can be obtained from ~lscpu~
+*** Launching a thread per CPU
+#+BEGIN_SRC c
+  int main(int argc, const char** argv) {
+    unsigned num_cpus = std::thread::hardware_concurrency();
+    std::cout << "Launching " << num_cpus << " threads\n";
+
+    // A mutex ensures orderly access to std::cout from multiple threads.
+    std::mutex iomutex;
+    std::vector<std::thread> threads(num_cpus);
+    for (unsigned i = 0; i < num_cpus; ++i) {
+      threads[i] = std::thread([&iomutex, i] {
+          {
+            // Use a lexical scope and lock_guard to safely lock the mutex only for
+            // the duration of std::cout usage.
+            std::lock_guard<std::mutex> iolock(iomutex);
+            std::cout << "Thread #" << i << " is running\n";
+          }
+
+          // Simulate important work done by the tread by sleeping for a bit...
+          std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+        });
+    }
+
+    for (auto& t : threads) {
+      t.join();
+    }
+    return 0;
+  }
+#+END_SRC
+
+*** Detour - thread IDs and native handles
+The thread library also lets us interact with platform-specific threading APIs by exposing native handles. 
+Here's an example program that launches a single thread, and then queries its thread ID along with the native handle:
+#+BEGIN_SRC c
+  int main(int argc, const char** argv) {
+    std::mutex iomutex;
+    std::thread t = std::thread([&iomutex] {
+        {
+          std::lock_guard<std::mutex> iolock(iomutex);
+          std::cout << "Thread: my id = " << std::this_thread::get_id() << "\n"
+                    << "        my pthread id = " << pthread_self() << "\n";
+        }
+      });
+
+    {
+      std::lock_guard<std::mutex> iolock(iomutex);
+      std::cout << "Launched t: id = " << t.get_id() << "\n"
+                << "            native_handle = " << t.native_handle() << "\n";
+    }
+
+    t.join();
+    return 0;
+  }
+#+END_SRC
+
+*** Setting CPU affinity programatically
+As we've seen earlier, command-line tools like taskset let us control the CPU affinity of a whole process. Sometimes, however, we'd like to do something more fine-grained and set the affinities of specific threads from within the program. How do we do that?
+Use ~pthread_setaffinity_np~:  Here is the example which pin each thread to a single know CPU by settng its affinity:
+#+BEGIN_SRC c
+  int main(int argc, const char** argv) {
+    constexpr unsigned num_threads = 4;
+    // A mutex ensures orderly access to std::cout from multiple threads.
+    std::mutex iomutex;
+    std::vector<std::thread> threads(num_threads);
+    for (unsigned i = 0; i < num_threads; ++i) {
+      threads[i] = std::thread([&iomutex, i] {
+          std::this_thread::sleep_for(std::chrono::milliseconds(20));
+          while (1) {
+            {
+              // Use a lexical scope and lock_guard to safely lock the mutex only
+              // for the duration of std::cout usage.
+              std::lock_guard<std::mutex> iolock(iomutex);
+              std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << "\n";
+            }
+
+            // Simulate important work done by the tread by sleeping for a bit...
+            std::this_thread::sleep_for(std::chrono::milliseconds(900));
+          }
+        });
+
+      // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
+      // only CPU i as set.
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      CPU_SET(i, &cpuset);
+      int rc = pthread_setaffinity_np(threads[i].native_handle(),
+                                      sizeof(cpu_set_t), &cpuset);
+      if (rc != 0) {
+        std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+      }
+    }
+
+    for (auto& t : threads) {
+      t.join();
+    }
+    return 0;
+  }
+#+END_SRC
+- use the ~native_handle~ method in order to pass the underlying native handle to the pthread call (it takes a ~pthread_t~ ID as its first argument).
+
+*** Sharing a core with hyperthreading
+To see the topology of processor on Linux:
+1) ~lstopo~
+2) An alternative non-graphical way to see which threads share the same core is to look at a special system file that exists per logical CPU. For example, for CPU 0:
+   ~cat /sys/devices/system/cpu/cpu0/topology/thread_siblings_list~
+
+The hardware thread explain: for example, a processor has 4 cores, each with 2 threads , for a total of hardware 8-threads -- 8 logical CPUs for the OS.
+
+Server-class processors will have multiple sockets, each with a multi-core CPU.For example, a machine with 2 sockets, each of which is a 8-core CPU with hyper-threads enable: a total 2 * 8 * 2 = 32 hardware threads.
+
+
+*** Performance demos of core sharing vs separate cores
+(a benchmark which do data parallelism could be used [[https://github.com/eliben/code-for-blog/tree/master/2016/threads-affinity][here]])
+He do some interesting experiment which shows sometimes running multiple threads on the same core actually hurts it. The reason is threads could compete over the execution units of the core and slow each other down.
+
+*** Summary
+- how to examine and set thread affinity 
+- how to control placement of threads on logical CPUs by using the C++ standard threading library in conjunction with POSIX calls, and the bridging native handles exposed by the C++ threading library for this purpose.
+- Different workloads have very different CPU utilization characteristics, which makes them more or less suitable for sharing a CPU core, sharing a socket or sharing a NUMA node.
+
+
 ** [[https://scicomp.stackexchange.com/questions/2028/portable-multicore-numa-memory-allocation-initialization-best-practices][Portable multicore/NUMA memory allocation/initialization best practices]]
-** [[http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-affinity.html][Affinity control outside OpenMP]]
-** [[https://yunmingzhang.wordpress.com/2018/01/20/openmp-numa-and-libnuma-note/][Blog about OpenMP numa and libnuma note]]
+*** The Questions
+Most operating system have ways to set threads affinity, but nost of them do not provide ways to set NUMA memory policies, except Linux. Its ~libnuma~ allow the application to manipulate memory policy and page migration at page granularity.
+
+Working with a "first touch" policy means that the caller should create and distribute threads later when frist writing to the freshly allocated memory. (Very few systems are configured such that ~malloc()~ actually finds pages, it just promises to find them when they are actually faulted, perhaps by different threads.) This implies that allocation using ~calloc()~ or immediately initializing memory after allocation using ~memset()~ is harmful since it will tend to fault all the memory onto the memory bus of the core running the allocating thread, leading to worst-case memory bandwidth when the memory is accessed from multiple threads.
+
+Are any solutions to NUMA allocation/initialization considered idiomatic?
+
+*** Answers from others:
+**** One solution to this problem is: disaggregate threads and tasks at the effectively, memory controller level.
+Remove the NUMA aspects from your code by having one task per CPU socket or memory controller and then threads under each task. You should be able to bind all memory to that socket/controller safely either via first-touch or one of the available API no matter which thread actually does the work of allocation or initialization.
+
+**** One solution talks about C++ ~new~ overloading
+#+BEGIN_SRC c
+  #include <cstddef>
+  #include <iostream>
+  #include <new>
+
+  // Just to use two different classes.
+  class arena { };
+  class policy { };
+
+  struct A
+  {
+    void* operator new(std::size_t, arena& arena_obj, policy& policy_obj)
+    {
+      std::cout << "special operator new\n";
+      return (void*)0x1234; //Just to test
+    }
+  };
+
+  void* operator new(std::size_t, arena& arena_obj, policy& policy_obj)
+  {
+    std::cout << "special operator new (global)\n";
+    return (void*)0x5678; //Just to test
+  }
+
+  int main ()
+  {
+    arena arena_obj;
+    policy policy_obj;
+    A* ptr = new(arena_obj, policy_obj) A;
+    int* iptr = new(arena_obj, policy_obj) int;
+    std::cout << ptr << "\n";
+    std::cout << iptr << "\n";
+  }
+#+END_SRC
+
+** [[http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-affinity.html][Affinity control outside OpenMP]] (OpenMP topic: Affinity)
+*** OpenMP thread affinity control
+**** Thread binding
+Suppose there are two sockets and have total of 16 cores. core {0~7} is on socket 0, {8~15} in on socket 1.
+- If you define
+  OMP_PLACES=cores
+  OMP_PROC_BIND=close
+
+  Then
+  - thread 0 goes to core 0, which is on socket 0,
+  - thread 1 goes to core 1, which is on socket 0,
+  - thread 2 goes to core 2, which is on socket 0,
+  - and so on, until thread 7 goes to core 7 on socket 0, and
+  - thread 8 goes to core 8, which is on socket 1,
+  - et cetera.
+  The value OMP_PROC_BIND=close means that the assignment goes successively through the available places.
+
+- If you define
+  OMP_PLACES=cores
+  OMP_PROC_BIND=spread
+
+  Then
+  - thread 0 goes to core 0, which is on socket 0,
+  - thread 1 goes to core 8, which is on socket 1,
+  - thread 2 goes to core 1, which is on socket 0,
+  - thread 3 goes to core 9, which is on socket 1,
+  - and so on, until thread 14 goes to core 7 on socket 0, and
+  - thread 15 goes to core 15, which is on socket 1.
+  The variable OMP_PROC_BIND can also be set to spread , which spreads the threads over the places.
+
+- If you define
+  OMP_PLACES=sockets
+
+  Then
+  - thread 0 goes to socket 0,
+  - thread 1 goes to socket 1,
+  - thread 2 goes to socket 0 again,
+  - and so on
+  It is very similar to previous example, expect the it does not bind a thread to a specific core, sor the OS can move threads about and it can put more than one thread on the same core, even if there is another core still unused.
+
+**** Place Definition
+- three predefined value for ~OMP_PLACES~: sockets, cores, and threads. The threads value becomes relevant on processor that have hardware threads. In that case, OMP_PLACES=cores does not tie a thread to a specific hardware thread, leading to possible collisions. Setting OMP_PLACES=threads bonds each OpenMP thread to a specific hardware thread.
+
+- General syntax: ~location:number:stride~
+  1) ~OMP_PLACES="{0:8:1},{8:8:1}"\~
+     Has the same effect of sockets on a two-socket design with eight cores per socket.
+     It defines two places, each having eight consecutive cores. The threads are then places alternating between the two places, but no further specified inside the place.
+  2) The setting cores is equal to
+     ~OMP_PLACES="{0},{1},{2},...,{15}"\~
+  3) On a four-socket design, the specification
+     ~OMP_PLACES="{0:4:8}:4:1"\~
+     states that the place 0, 8, 16, 24 needs to be repeated 4 time, with a stride of 1.
+
+**** Binding possibilities
+Values of OMP_PROC_BIND are:
+- false, set no binding
+- true, lock threads to a core
+- master, collocate threads with the master thread
+- close, place threads close to the master in the places list
+- spread, spread out threads as much as possible
+
+The effect can be made local by using ~proc_bind~ clause in the parallel directive.
+
+A safe default setting is: ~export OMP_PROC_BIND=true~, which prevents the OS form migrating a thread.
+
+
+*** First-touch
+**** First-touch
+The affinity issue shows up in the first-touch phenomemon. Memory allocated with malloc and like routines is not actually allocated; that only happens when data is written to it. Consider the following code:
+#+BEGIN_SRC c
+  double *x = (double*) malloc(N*sizeof(double));
+   
+  for (i=0; ilt;N; i++)
+    x[i] = 0;
+   
+  #pragma omp parallel for
+  for (i=0; ilt;N; i++)
+    .... something with x[i] ...
+#+END_SRC
+
+Since the initialization loop is not parallel it is executed by the master thread, *making all the memory associated with the socket of that thread*. Subsequent access by other socket will then access data from memory not attached to that socket.
+
+*** SPMD sytle of programming
+By regarding affinity, by adopting an SPMD style of programming. You could make this explicit by having each thread allocate its part of the arrays separately, and storing a private pointer as ~threadprivate~. 
+
+However, this makes it impossible for threads to access each other's parts of the distributed array, so this is only suitable for /total/ data  parallel or embarassingly parallel applications.
+
+- embarrassingly parallel workload or problem is one where lietter or no effort is needed to separate the problem into number of parallel tasks. This is often the case where there is little or no dependency or need for communication between those parallel tasks, or for results between them.
+
+
+** [[https://yunmingzhang.wordpress.com/2018/01/20/openmp-numa-and-libnuma-note/][Blog about OpenMP numa and libnuma note]] 
+Some notes on using libnuma, and achieving some similar functionalities in OpenMP using task affinity and places.
+*** libnuma
+For memory allocation, ususally routine such as malloc uses first touch. However, "numa alloc" it would actually go in touch every location and make sure it is allocated on a certian node.
+
 ** [[https://stackoverflow.com/questions/23142702/how-to-instantiate-c-objects-on-specific-numa-memory-nodes][How to instantiate C++ objects on specific NUMA memory nodes?]]
-*** [[http://en.cppreference.com/w/cpp/language/new][new expression]]
+#+BEGIN_SRC c
+  void *blob = numa_alloc_onnode(sizeof(Object), ...);
+  Object *object = new(blob) Object;
+#+END_SRC
+*** [[http://en.cppreference.com/w/cpp/language/new][new expression]] in C++
 
 * A blog shows what attribute need to monitor for NUMA node performance analysis
 [[http://www.acceleware.com/blog/real-time-NUMA-node-performance-analysis-using-intel-performance-counter-monitor][Real-Time NUMA Node Performance Analysis Using Intel Performance Counter Monitor]]
@@ -418,6 +689,8 @@ For example, in a 2 socket system with 8 cores in each socket, and sequential nu
 *** Affinity query function
 - ~omp_get_num_places()~
 - ~omp_get_place_num_procs()~
+
+
 
 * Bibliography
 bibliographystyle:abbrv
