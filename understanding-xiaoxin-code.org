@@ -1,0 +1,150 @@
+* Related concpets
+** Code block from main.cpp
+*** Related to ~csv_parser~
+#+BEGIN_SRC c++
+  while (csv.has_more_rows()) {
+    IMG *img = new IMG();
+    snprintf(img->name, 50, format, csv.get_row()[1].c_str());
+    img->readImg();
+    imgs.push_back(img);
+   }
+#+END_SRC
+- ~csv.get_row()~ returns ~current_row~ which is a type ~vector<string>~.
+- ~int snprintf ( char * s, size_t n, const char * format, ... )~
+  - Composes a string with the same text that would be printed if ormat was used on printf, but instead of being printed, the content is stored as a C string in the buffer pointed by s. 
+  - ~snprintf(img->name, 50, format, csv.get_row()[1].c_str())~
+  - ~img->name~ will be set to the content stored in csv
+    The content of ~csv.get_row~ is: 524,539,64269,1574275,0,-40.340596,175.818555,0,0,90,-40.340228,175.818816,1894,-4.34,2.89,-8.87,70,60GUA,99653,33769,10164
+    
+    So, the ~img->name~ will be set to 539.
+
+*** Related to ~class IMG~
+- ~IMG~ uses default constructor
+- ~img->readImg()~, which just executes one line of code: ~readImgInStream();~
+- ~void readImgInStream()~
+  #+BEGIN_SRC c++
+    ifstream in;
+    char tname[50];
+    strcpy(tname, name);
+    strcat(tname, ".bin");
+    in.open(tname);
+
+    in.read((char *)&rows, sizeof(int));
+    in.read((char *)&cols, sizeof(int));
+    printf("%s %d %d\n", name, rows, cols);
+    int size = rows * cols;
+    data = new float[size];
+    in.read((char *)data, size * sizeof(float));
+    in.close();
+  #+END_SRC
+  1) get the actual data file's name
+  2) use ~ifstream~ to open that file, then call ~read~:
+     - ~istream& read (char* s, streamsize n)~
+       Extract ~n~ characters from the stream and stores them in the array pointed to by ~s~.
+     - ~in.read((char *)&rows, sizeof(int));~
+       The corresponding .txt file (which contains the same data as .bin file except format) has "10164, 128" at the beginning.
+       
+       So that two line of ~read~, read out the corresponding rows and columns of features and put them into rows and cols. 
+       
+     The variables ~rows~ and ~cols~ are delared as: ~int rows, cols;~
+     Notice: the convertion to ~char *~
+
+  3) get the real data size = rows * columns, then assign data with allocated memory:
+     ~data = new float[size];~
+
+     The memory space is not actually allocated at this moment yet, due to first touch policy.
+
+  4) ~in.read((char *)data, size * sizeof(float));~ really write those size of bytes into ~IMG::data~
+  5) close ~ifstream~, end of loading one image data.
+
+
+After reading loading two image's data, it executes  ~TIMER_READ(runtime[1]);~
+*** Related to measurement of time
+- ~runtime~ is defined as ~TIMER_T runtime[4];~
+- ~#define TIMER_READ(time)                gettimeofday(&(time), NULL)~
+
+*** Related to build index ~IMG::buildIndex()~
+#+BEGIN_SRC c++
+  int ni = imgs.size() - 1;
+  //      #pragma omp parallel for schedule(dynamic)
+  for (int i = 0; i < ni; ++i) {
+    imgs[i]->buildIndex();
+   }
+
+  TIMER_READ(runtime[2]);
+  printf("Build indexes: %f\n", TIMER_DIFF_SECONDS(runtime[1], runtime[2]));
+
+  int *index = new int[imgs[ni]->rows * KNN];
+  float *dist = new float[imgs[ni]->rows * KNN];
+#+END_SRC
+
+**** ~void buildIndex()~
+#+BEGIN_SRC c++
+  void buildIndex() {
+    Matrix<float> mat(data, rows, cols);
+
+    sdc = new SDCIndex(data, rows, cols);
+    sdc->buildIndex();
+  }
+#+END_SRC
+- ~flann::Matrix<T>~, the mat is used with other algorithm, not needed if we just want SDCIndex.
+- So far, as 539.jpg.txt as example, ~rows~ = 10164, ~cols~ = 128, ~data~ is an float array with length 10164 * 128.
+- Go to the details from ~SDCIndex~
+
+
+** Code block from SDCIndex
+#+BEGIN_SRC c++
+  SDCIndex *sdc;
+  sdc = new SDCIndex(data, rows, cols);
+  sdc->buildIndex();
+#+END_SRC
+*** ~SDCIndex~ constructor
+#+BEGIN_SRC c++
+  SDCIndex::SDCIndex(float* data_, int rows_, int cols_) {
+    ddata    = data_;
+    drows    = rows_;
+    dcols    = cols_;
+    beLongTo = NULL;
+    branch = num = total = 0;
+  }
+#+END_SRC
+
+
+*** ~void SDCIndex::buildIndex()~ execute one line of code: ~buildIndex(DEPTH_, BRANCH_, ITER);~
+**** code block in 01
+#+BEGIN_SRC c++
+  for (size_t i = 0; i < clusters.size(); ++i) {
+    clusters[i]->~Cluster();
+   }
+  clusters.clear();
+  if (beLongTo != NULL) {
+    delete[] beLongTo;
+   }
+  branch = branch_;
+  KMeansParams par;
+  par["branching"]  = branch_;
+  par["iterations"] = iter_;
+#+END_SRC
+- clear the clusters
+- ~par["branching"]~ is 0, ~par["iterations"] = iter_;~ which equals ~ITER~ which defined as ~#define ITER 10~.
+
+**** code block 02 
+#+BEGIN_SRC c++
+  int dimen = dcols / depth;
+  for (int i = 0; i < depth; ++i) {
+    Matrix<float> mat(
+                      ddata + dimen * i, drows, dimen, dcols * sizeof(float));
+
+    // the place where build the kmeans
+    KMeans<L2<float>> kmeans(mat, par);
+    kmeans.buildIndex();
+
+    Cluster* clu = kmeans.getCluster();
+    clu->start   = dimen * i;
+    clusters.push_back(clu);
+   }
+  std::sort(clusters.begin(), clusters.end(), compare);
+#+END_SRC
+- ~dcols~ = 128, ~depth~ = ~SDCIndex::DEPTH_  = 16~, ~dimen~ = 128 / 16 = 8.
+- ~ddata~ is ~float* data~ which is the float array with size rows * cols.
+- 
