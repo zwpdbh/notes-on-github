@@ -71,7 +71,7 @@ I have several questions about it:
 
 5) There is a flann_kmeans_index.h, does it relates to SCF algirithm (sdc_kmeans.h)? If I do some modification on your SCF algirithm with NUMA consideration, do I need to modify flann_kmeans_index.h ?
 
-6) I didn't see many OpenMP directive usage. During my experience of implementing your algirithm, I found the most computational heavy part is the clustering part. But in your sdc_kmeans.h, there is no OpenMP parallel directive marks,does this because you already use FLANN for kmeans and it is already a parallel version?
+6) I didn't see many OpenMP directive usage. During my experience of implementing your algirithm, I found the most computational heavy part is the clustering part. But in your sdc_kmeans.h, there is no OpenMP parallel directive marks. Does this because you already use FLANN for kmeans and it is already a parallel version?
 
 7) Why it is sdc_xxx while it is named SCF in your paper? I just want to make sure it is the same paper and algirithm we are talking about. Since you publiced several papers.
 
