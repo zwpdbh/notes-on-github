@@ -43,7 +43,8 @@ I have several questions about it:
    #+END_SRC
    Where this function is used for? I haven't seen any other part of code used it.
 3) In your defined struct =Cluster=, you defined a other informations:
-   - centers, why is centers?.. I think there is just one center for one cluster
+   - +centers, why is centers?.. I think there is just one center for one cluster+ 
+     OK, I understand this cluster is a hierarchical cluster which contains each clusters in the nodes.
    - radiuses,
    - variances
    - averages
