@@ -1,4 +1,4 @@
-% Created 2018-04-11 Wed 14:14
+% Created 2018-04-17 Tue 12:09
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -47,6 +47,14 @@ Present and evaluate 3 parallelization strategies of the 3d fast wavelet transfo
 \item Performance drops when all MPI processes spread to several boards due to the the limited bandwidth of the onboard LAN port.
 \item Overall, they have shown Raspberry Pi 2 SDC reveals as an appealing platform for giving support to 3D-FWT-based applications with low-cost and energy efficiency requirements.
 \end{itemize}
+
+\subsection{Test code block}
+\label{sec-1-2}
+\begin{verbatim}
+for (int i = 0; i < k; i++) {
+  printf("this is test");
+ }
+\end{verbatim}
 
 \section{A mathematical model to calculate real cost/performance in software distributed shared memory on computing environments \cite{khaneghah17_mathem_model_to_calcul_real}}
 \label{sec-2}

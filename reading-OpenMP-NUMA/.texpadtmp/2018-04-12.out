@@ -1,0 +1,71 @@
+\BOOKMARK [1][-]{section.1}{OpenMP on NUMA architectures}{}% 1
+\BOOKMARK [2][-]{subsection.1.1}{Investigating NUMA topologies}{section.1}% 2
+\BOOKMARK [2][-]{subsection.1.2}{Optimizing NUMA accesses}{section.1}% 3
+\BOOKMARK [2][-]{subsection.1.3}{Thread placement in OpenMP}{section.1}% 4
+\BOOKMARK [3][-]{subsubsection.1.3.1}{Selecting the right binding strategy depends not only on the topology, but also on the characteristics of the application.}{subsection.1.3}% 5
+\BOOKMARK [3][-]{subsubsection.1.3.2}{Available strategies}{subsection.1.3}% 6
+\BOOKMARK [3][-]{subsubsection.1.3.3}{Abstract names for OMP\137PLACES}{subsection.1.3}% 7
+\BOOKMARK [2][-]{subsection.1.4}{Data Placement}{section.1}% 8
+\BOOKMARK [3][-]{subsubsection.1.4.1}{First touch in action}{subsection.1.4}% 9
+\BOOKMARK [2][-]{subsection.1.5}{Memory and thread placement in Linux}{section.1}% 10
+\BOOKMARK [1][-]{section.2}{OpenMP overview}{}% 11
+\BOOKMARK [2][-]{subsection.2.1}{OpenMp Compilation process}{section.2}% 12
+\BOOKMARK [2][-]{subsection.2.2}{Notation}{section.2}% 13
+\BOOKMARK [3][-]{subsubsection.2.2.1}{Syntax}{subsection.2.2}% 14
+\BOOKMARK [3][-]{subsubsection.2.2.2}{Notation \(OpenMP\)}{subsection.2.2}% 15
+\BOOKMARK [3][-]{subsubsection.2.2.3}{Scope of Variables}{subsection.2.2}% 16
+\BOOKMARK [3][-]{subsubsection.2.2.4}{parallel for directive}{subsection.2.2}% 17
+\BOOKMARK [3][-]{subsubsection.2.2.5}{reduce clause}{subsection.2.2}% 18
+\BOOKMARK [3][-]{subsubsection.2.2.6}{critical sections}{subsection.2.2}% 19
+\BOOKMARK [3][-]{subsubsection.2.2.7}{Atomic statements}{subsection.2.2}% 20
+\BOOKMARK [3][-]{subsubsection.2.2.8}{More synchronization constructs}{subsection.2.2}% 21
+\BOOKMARK [2][-]{subsection.2.3}{ForestGOMP: NUMA with OpenMP}{section.2}% 22
+\BOOKMARK [3][-]{subsubsection.2.3.1}{BubbleSched: hierarchical buble-based thread scheduler}{subsection.2.3}% 23
+\BOOKMARK [3][-]{subsubsection.2.3.2}{Mami: NUMA-aware memory manager}{subsection.2.3}% 24
+\BOOKMARK [1][-]{section.3}{ForestGOMP: an efficient OpenMP environment for NUMA architectures broquedis10fores}{}% 25
+\BOOKMARK [1][-]{section.4}{OpenMP task scheduling strategies for multicore NUMA systems olivier12openmtaskschedstratmulticnumasystem}{}% 26
+\BOOKMARK [2][-]{subsection.4.1}{Abstract}{section.4}% 27
+\BOOKMARK [2][-]{subsection.4.2}{Introduction}{section.4}% 28
+\BOOKMARK [3][-]{subsubsection.4.2.1}{Their contributions}{subsection.4.2}% 29
+\BOOKMARK [2][-]{subsection.4.3}{Background}{section.4}% 30
+\BOOKMARK [2][-]{subsection.4.4}{Conclustion}{section.4}% 31
+\BOOKMARK [1][-]{section.5}{OpenMP Extension for Explicit Task Allocation on NUMA Architecture 10.1007/978-3-319-45550-17}{}% 32
+\BOOKMARK [2][-]{subsection.5.1}{Abstract}{section.5}% 33
+\BOOKMARK [2][-]{subsection.5.2}{Introduction}{section.5}% 34
+\BOOKMARK [2][-]{subsection.5.3}{Related work}{section.5}% 35
+\BOOKMARK [2][-]{subsection.5.4}{OpenMP Extension for NUMA-Aware Task Allocation}{section.5}% 36
+\BOOKMARK [1][-]{section.6}{Linux libnuma}{}% 37
+\BOOKMARK [2][-]{subsection.6.1}{Description}{section.6}% 38
+\BOOKMARK [3][-]{subsubsection.6.1.1}{It offers a programming interface to the NUMA policy. Available policies are:}{subsection.6.1}% 39
+\BOOKMARK [3][-]{subsubsection.6.1.2}{Note:}{subsection.6.1}% 40
+\BOOKMARK [1][-]{section.7}{Links related with C++ and libnuma}{}% 41
+\BOOKMARK [2][-]{subsection.7.1}{C++11 threads, affinity and hyperthreading}{section.7}% 42
+\BOOKMARK [3][-]{subsubsection.7.1.1}{Background and introduction}{subsection.7.1}% 43
+\BOOKMARK [3][-]{subsubsection.7.1.2}{Logical CPUs, cores and threads}{subsection.7.1}% 44
+\BOOKMARK [3][-]{subsubsection.7.1.3}{Launching a thread per CPU}{subsection.7.1}% 45
+\BOOKMARK [3][-]{subsubsection.7.1.4}{Detour - thread IDs and native handles}{subsection.7.1}% 46
+\BOOKMARK [3][-]{subsubsection.7.1.5}{Setting CPU affinity programatically}{subsection.7.1}% 47
+\BOOKMARK [3][-]{subsubsection.7.1.6}{Sharing a core with hyperthreading}{subsection.7.1}% 48
+\BOOKMARK [3][-]{subsubsection.7.1.7}{Performance demos of core sharing vs separate cores}{subsection.7.1}% 49
+\BOOKMARK [3][-]{subsubsection.7.1.8}{Summary}{subsection.7.1}% 50
+\BOOKMARK [2][-]{subsection.7.2}{Portable multicore/NUMA memory allocation/initialization best practices}{section.7}% 51
+\BOOKMARK [3][-]{subsubsection.7.2.1}{The Questions}{subsection.7.2}% 52
+\BOOKMARK [3][-]{subsubsection.7.2.2}{Answers from others:}{subsection.7.2}% 53
+\BOOKMARK [2][-]{subsection.7.3}{Affinity control outside OpenMP \(OpenMP topic: Affinity\)}{section.7}% 54
+\BOOKMARK [3][-]{subsubsection.7.3.1}{OpenMP thread affinity control}{subsection.7.3}% 55
+\BOOKMARK [3][-]{subsubsection.7.3.2}{First-touch}{subsection.7.3}% 56
+\BOOKMARK [3][-]{subsubsection.7.3.3}{SPMD sytle of programming}{subsection.7.3}% 57
+\BOOKMARK [2][-]{subsection.7.4}{Blog about OpenMP numa and libnuma note}{section.7}% 58
+\BOOKMARK [3][-]{subsubsection.7.4.1}{libnuma}{subsection.7.4}% 59
+\BOOKMARK [2][-]{subsection.7.5}{How to instantiate C++ objects on specific NUMA memory nodes?}{section.7}% 60
+\BOOKMARK [3][-]{subsubsection.7.5.1}{new expression in C++}{subsection.7.5}% 61
+\BOOKMARK [1][-]{section.8}{A blog shows what attribute need to monitor for NUMA node performance analysis}{}% 62
+\BOOKMARK [1][-]{section.9}{Summary}{}% 63
+\BOOKMARK [2][-]{subsection.9.1}{What is data parallelism and what is task parallelism?}{section.9}% 64
+\BOOKMARK [2][-]{subsection.9.2}{How does each of them related to OpenMP}{section.9}% 65
+\BOOKMARK [2][-]{subsection.9.3}{What's their current status for using OpenMP under NUMA architectures?}{section.9}% 66
+\BOOKMARK [2][-]{subsection.9.4}{Which algorithm do I need to use, data/task parallelism or both?}{section.9}% 67
+\BOOKMARK [2][-]{subsection.9.5}{Operating system concepts}{section.9}% 68
+\BOOKMARK [3][-]{subsubsection.9.5.1}{work-stealing blumofe99schedmultitcomputbyworksteal}{subsection.9.5}% 69
+\BOOKMARK [2][-]{subsection.9.6}{OpenMP affinity}{section.9}% 70
+\BOOKMARK [3][-]{subsubsection.9.6.1}{Concepts}{subsection.9.6}% 71

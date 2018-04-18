@@ -160,3 +160,4 @@ continue from previous code block
   clusters.push_back(clu);
 #+END_SRC
 - template <typename Distance> class KMeans : public NNIndex<Distance>
+- 

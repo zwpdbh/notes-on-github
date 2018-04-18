@@ -1,6 +1,9 @@
-
 #+title: 2018-04-12 reading notes for OpenMP NUMA
-
+#+latex_header: \usepackage{hyperref}
+#+latex_header: \usepackage{cleveref}
+#+latex_header: \usepackage{xcolor}
+#+latex_header: \usepackage{amsmath}
+#+latex_header: \hypersetup{colorlinks=true}
 
 * OpenMP on NUMA architectures
 ** Investigating NUMA topologies
@@ -53,6 +56,7 @@
   nodebind: 0 1 2 3 4 5 6 7 
   membind: 0 1 2 3 4 5 6 7 
 #+END_SRC
+
 - use ~lstopo~ show the system topology
 ** Optimizing NUMA accesses
 Goal: minimize the number of remote memory accesses as much as possible.
@@ -81,7 +85,7 @@ Assume the following machine:
 #+ATTR_LATEX: :width 2.0in
 #+ATTR_HTML: :width 200/250/300/400/500/600px
 [[file:~/Documents/screenshots/numa-nodes.png]]
-*** Abstract names for ~OMP_PLACES~
+*** Abstract names for  =OMP_PLACES=
 - threads: each place corresponds to a single hardware thread on the target machine.
 - cores: each place corresponds to a single core (having one or more hardware threads) on the target machine.
 - sockets: each place corresponds to a single socket (consisting of one or more cores) on the target machine.
@@ -93,8 +97,8 @@ Assume the following machine:
   #pragma omp parallel proc_bind(spread)
   #pragma omp parallel proc_bind(close)
 #+END_SRC
-- ~OMP_PLACES~
-- ~proc_bind~
+- =OMP_PLACES=
+- =proc_bind=
 ** Data Placement
 - OpenMP does not provide support for cc-NUMA 
 - Placement comes from the operating system (Operating system dependent)
@@ -137,10 +141,10 @@ Assume the following machine:
 - ~numactl --interleave 0-3 ./a.out~, distribute memory pages on NUMA nodes 0-3 in a round-robin fashion, overwrite first-touch policy.
 
 ~libnuma~ library of NUMA control
-- ~void *numa_alloc_local(size_t size)~, allocate memory on the local NUMA node.
-- ~void *numa_alloc_onnode(size_t size, int node)~, allocate memory on NUMA node node.
-- ~void *numa_alloc_interleaved(size_t size)~ allocate memory distributed round-robin on all NUMA nodes.
-- ~int numa_move_pages(int pid, unsigned long count, void **pages, const int *nodes, int *status, int flags)~, migrate memory pages at runtime to different NUMA nodes.
+- =void *numa_alloc_local(size_t size)=, allocate memory on the local NUMA node.
+- =void *numa_alloc_onnode(size_t size, int node)=, allocate memory on NUMA node node.
+- =void *numa_alloc_interleaved(size_t size)= allocate memory distributed round-robin on all NUMA nodes.
+- ~int numa_move_pages(int pid, unsigned long count, void **pages, const int *nodes, int *status, int flags)=, migrate memory pages at runtime to different NUMA nodes.
 * OpenMP overview
 ** OpenMp Compilation process
 - Annotated source code -> OpenMP compiler -> parallel object code
@@ -167,10 +171,10 @@ Assume the following machine:
 **** Handout only: scope of variables
 - private variables are uninitialized
 - initialize variables with value from master thread: ~firstprivate~
-- ~default(none)~ requires programmer to specify visibility for all variables implicitly, good practice.
-*** ~parallel for~ directive
+- ~default(none)= requires programmer to specify visibility for all variables implicitly, good practice.
+*** =parallel for= directive
 - run loop interations in parallel
-- shortcut: ~#pragma omp parallel for~
+- shortcut: =#pragma omp parallel for~
 - loop iterations must be data-independent
 - OpenMP must be able to determine the number of iterations before the loop is executed.
 - Mapping of iterations to threads controlled by ~schedule~ clause
@@ -178,16 +182,16 @@ Assume the following machine:
   - schedule(dynamic [, chunksize]): thread reserves chunksize iterations from queue
   - schedule(guided [, chunksize]): same as dynamnic, but chunk size starts big and gets smaller and smaller, until it reaches chunksize.
   - schedule(runtime): scheduling behavior determined by environment variable
-*** ~reduce~ clause
-*** ~critical~ sections
-*** ~Atomic~ statements
+*** =reduce= clause
+*** =critical= sections
+*** =Atomic= statements
 *** More synchronization constructs
-- ~#pragma omp barrier~: wait until all threads arrive
-- ~#pragma omp for nowait~: remove implicit barrier after for loop (also exists for other directives)
-- ~#pragma omp master~: only executed by master thread
-- ~#pragma omp single~: only executed by one thread
+- =#pragma omp barrier=: wait until all threads arrive
+- =#pragma omp for nowait~: remove implicit barrier after for loop (also exists for other directives)
+- =#pragma omp master~: only executed by master thread
+- =#pragma omp single~: only executed by one thread
 - Sections: define a number of blocks, every thread executes one block
-- Locks: ~omp_init_lock()~, ~omp_set_lock()~, ~omp_unset_lock()~,...
+- Locks: =omp_init_lock()=, =omp_set_lock()=, =omp_unset_lock()=,...
 
 ** ForestGOMP: NUMA with OpenMP
 - Objectives and motivations
@@ -259,7 +263,7 @@ In this paper, we propose an extension for the OpenMP task construct to specify 
 - In the early version of OpenMP, the programming model had focused on data parallelism described by loop work sharing, which requires global synchro- nization in a parallel region. When the number of cores increases, synchronization overhead is getting bigger, and load imbalance among cores causes a significant performance drop.
 - In OpenMP 4.0, task dependency can be specified using the depend clause in the task construct. Task parallelism can exploit potential parallelism in irregular applications. Task dependency can reduce synchronization overhead because it generates fine-grain synchronization between dependent tasks.
 - To exploit memory bandwidth with NUMA architectures, OpenMP provides thread affinity options.
-  - For OpenMP4.5, the ~proc_bind~ clause is discussed to specify a thread affinity scheme for a parallel region. These can be helpful to improve data locality when performing data parallelism with loop work sharing.
+  - For OpenMP4.5, the =proc_bind= clause is discussed to specify a thread affinity scheme for a parallel region. These can be helpful to improve data locality when performing data parallelism with loop work sharing.
   - However, the current specification lacks functionality to do the same thing for task parallelism.
   #+BEGIN_COMMENT
   This means I need to decide which parallel model I need to use for SCF kNN algorithm.
@@ -275,8 +279,6 @@ In this paper, we propose an extension for the OpenMP task construct to specify 
 Generally, improving data locality and reducing remote memory access can exploit potential memory performance on the NUMA architecture. The same is true for task parallelism in OpenMP. A task should be executed on the NUMA node where its processing data is allocated to get the highest memory bandwidth. They propose a new clause named ~node_bind~ for OpenMP task construct. It specifies a NUMA node that the target task should be scheduled.
 
 (to be continued)
-
-
 * [[http://man7.org/linux/man-pages/man3/numa.3.html][Linux libnuma]]
 ** Description
 *** It offers a programming interface to the NUMA policy. Available policies are:
@@ -356,7 +358,7 @@ Here's an example program that launches a single thread, and then queries its th
 
 *** Setting CPU affinity programatically
 As we've seen earlier, command-line tools like taskset let us control the CPU affinity of a whole process. Sometimes, however, we'd like to do something more fine-grained and set the affinities of specific threads from within the program. How do we do that?
-Use ~pthread_setaffinity_np~:  Here is the example which pin each thread to a single know CPU by settng its affinity:
+Use =pthread_setaffinity_np=:  Here is the example which pin each thread to a single know CPU by settng its affinity:
 #+BEGIN_SRC c
   int main(int argc, const char** argv) {
     constexpr unsigned num_threads = 4;
@@ -424,7 +426,7 @@ He do some interesting experiment which shows sometimes running multiple threads
 *** The Questions
 Most operating system have ways to set threads affinity, but nost of them do not provide ways to set NUMA memory policies, except Linux. Its ~libnuma~ allow the application to manipulate memory policy and page migration at page granularity.
 
-Working with a "first touch" policy means that the caller should create and distribute threads later when frist writing to the freshly allocated memory. (Very few systems are configured such that ~malloc()~ actually finds pages, it just promises to find them when they are actually faulted, perhaps by different threads.) This implies that allocation using ~calloc()~ or immediately initializing memory after allocation using ~memset()~ is harmful since it will tend to fault all the memory onto the memory bus of the core running the allocating thread, leading to worst-case memory bandwidth when the memory is accessed from multiple threads.
+Working with a "first touch" policy means that the caller should create and distribute threads later when frist writing to the freshly allocated memory. (Very few systems are configured such that ~malloc()= actually finds pages, it just promises to find them when they are actually faulted, perhaps by different threads.) This implies that allocation using ~calloc()= or immediately initializing memory after allocation using ~memset()= is harmful since it will tend to fault all the memory onto the memory bus of the core running the allocating thread, leading to worst-case memory bandwidth when the memory is accessed from multiple threads.
 
 Are any solutions to NUMA allocation/initialization considered idiomatic?
 
@@ -509,16 +511,18 @@ Suppose there are two sockets and have total of 16 cores. core {0~7} is on socke
   It is very similar to previous example, expect the it does not bind a thread to a specific core, sor the OS can move threads about and it can put more than one thread on the same core, even if there is another core still unused.
 
 **** Place Definition
-- three predefined value for ~OMP_PLACES~: sockets, cores, and threads. The threads value becomes relevant on processor that have hardware threads. In that case, OMP_PLACES=cores does not tie a thread to a specific hardware thread, leading to possible collisions. Setting OMP_PLACES=threads bonds each OpenMP thread to a specific hardware thread.
+- three predefined value for =OMP_PLACES=: sockets, cores, and threads. The threads value becomes relevant on processor that have hardware threads. In that case, OMP_PLACES=cores does not tie a thread to a specific hardware thread, leading to possible collisions. Setting OMP_PLACES=threads bonds each OpenMP thread to a specific hardware thread.
 
 - General syntax: ~location:number:stride~
-  1) ~OMP_PLACES="{0:8:1},{8:8:1}"\~
+  1) src_<c>{OMP_PLACES="{0:8:1},{8:8:1}"}
      Has the same effect of sockets on a two-socket design with eight cores per socket.
      It defines two places, each having eight consecutive cores. The threads are then places alternating between the two places, but no further specified inside the place.
   2) The setting cores is equal to
-     ~OMP_PLACES="{0},{1},{2},...,{15}"\~
+     #+BEGIN_SRC 
+     {OMP_PLACES="{0},{1},{2},...,{15}"
+     #+END_SRC
   3) On a four-socket design, the specification
-     ~OMP_PLACES="{0:4:8}:4:1"\~
+     src_<c>{OMP_PLACES="{0:4:8}:4:1"}
      states that the place 0, 8, 16, 24 needs to be repeated 4 time, with a stride of 1.
 
 **** Binding possibilities
@@ -529,7 +533,7 @@ Values of OMP_PROC_BIND are:
 - close, place threads close to the master in the places list
 - spread, spread out threads as much as possible
 
-The effect can be made local by using ~proc_bind~ clause in the parallel directive.
+The effect can be made local by using =proc_bind= clause in the parallel directive.
 
 A safe default setting is: ~export OMP_PROC_BIND=true~, which prevents the OS form migrating a thread.
 
@@ -572,9 +576,6 @@ For memory allocation, ususally routine such as malloc uses first touch. However
 
 * A blog shows what attribute need to monitor for NUMA node performance analysis
 [[http://www.acceleware.com/blog/real-time-NUMA-node-performance-analysis-using-intel-performance-counter-monitor][Real-Time NUMA Node Performance Analysis Using Intel Performance Counter Monitor]]
-
-
-  
 * Summary 
 ** What is data parallelism and what is task parallelism? 
    A parallel program is composed of simultaneously executing processes. Problem decomposition relates to the way in which the constituent processes are formulated
@@ -591,23 +592,23 @@ For memory allocation, ususally routine such as malloc uses first touch. However
 *** work-stealing cite:blumofe99_sched_multit_comput_by_work_steal
 ** OpenMP affinity
 *** Concepts
-- OpenMP affinity consists of a ~proc_bind~ policy and a specification of places. It enables users to bind computations on specific places. The placement will hold for the duration of the parallel region.
+- OpenMP affinity consists of a =proc_bind= policy and a specification of places. It enables users to bind computations on specific places. The placement will hold for the duration of the parallel region.
   - place refers to processors which could be cores, or hardware threads, sockets.
 - However, the runtime is free to migrate the OpenMP threads to different cores (hardware thread, or sockets) prescribed within a given place, if two or more cores(hardware threads, sockets) have been assigned to a given place.
-- ~OMP_PLACES~ specify the places, witout setting it, OpenMP runtime will distribute and bind threads using the entire range of processors for the OpenMP program, based on the policy specified by ~proc_bind~.
+- =OMP_PLACES= specify the places, witout setting it, OpenMP runtime will distribute and bind threads using the entire range of processors for the OpenMP program, based on the policy specified by =proc_bind=.
 - SMT(Simultaneous Multi-Threading)
 - HW-thread, hardware thread
 - OpenMP places use the processor number to designate binding locations.
-- Threads of a team are positioned onto places in a compact manner, a scattered distribution, or onto a master's place, by setting ~proc_bind~ clause to /close/, /spread/, or /master/
-*** The ~proc_bind~ clause
+- Threads of a team are positioned onto places in a compact manner, a scattered distribution, or onto a master's place, by setting =proc_bind= clause to /close/, /spread/, or /master/
+*** The =proc_bind= clause
 - picture of hierarchy: socket -> physical core -> hardware thread
-- If a machine has 2 sockets, each of them has 4 cores, and each core has 2 hardware  threads. Then the ~OMP_PLACES~ variable could be set like:
-~OMP_PLACES="{0,1},{2,3},{4,5},{6,7},{8,9},{10,11},{12,13},{14,15}"\~  or equivalently ~OMP_PLACES="{0:2}:8:2"
+- If a machine has 2 sockets, each of them has 4 cores, and each core has 2 hardware  threads. Then the =OMP_PLACES= variable could be set like:
+"{0,1},{2,3},{4,5},{6,7},{8,9},{10,11},{12,13},{14,15}" or equivalently "{0:2}:8:2"
 
 **** Spread affinity policy
-(assuming the ~OMP_PLACES~ is the same)
+(assuming the =OMP_PLACES= is the same)
 When the number of threads is less than or equal to the number of places in the parent' place partition. Such as:
-~#pragma omp parallel proc_bind(spread) num_threads(4)~
+=#pragma omp parallel proc_bind(spread) num_threads(4)=
 1) If the master thread is initially started on p0, the following placement of threads will be applied in the parallel region:
    - thread 0 executes on p0 with the place partition p0,p1
    - thread 1 executes on p2 with the place partition p2,p3
@@ -620,7 +621,7 @@ When the number of threads is less than or equal to the number of places in the 
    - thread 3 executes on p0 with the place partition p0,p1
 
 When the number of thread is greater than the number of places in the parent's place partition.
-~#pragma omp parallel num_threads(16) proc_bind(spread)~
+=#pragma omp parallel num_threads(16) proc_bind(spread)=
 1) If the master thread is initially started on p0:
    - threads 0,1 execute on p0 with the place partition p0
    - threads 2,3 execute on p1 with the place partition p1
@@ -642,7 +643,7 @@ When the number of thread is greater than the number of places in the parent's p
 
 **** Close affinity policy
 When the number of threads is less than or equal to the number of places in parent's place partition:
-~#pragma omp parallel proc_bind(close) num_threads(4)~
+=#pragma omp parallel proc_bind(close) num_threads(4)=
 1) If the master thread is initially started on p0, the following placement of threads will be applied in the ~parallel~ region:
    - thread 0 executes on p0 with the place partition p0-p7
    - thread 1 executes on p1 with the place partition p0-p7
@@ -655,7 +656,7 @@ When the number of threads is less than or equal to the number of places in pare
    - thread 3 executes on p5 with the place partition p0-p7
 
 When the number of thread is greater than the number of places in parent's place partition:
-~#pragma omp parallel num_threads(16) proc_bind(close)~
+=#pragma omp parallel num_threads(16) proc_bind(close)=
 1) If master is on p0
    - threads 0,1 execute on p0 with the place partition p0-p7
    - threads 2,3 execute on p1 with the place partition p0-p7
@@ -676,28 +677,26 @@ When the number of thread is greater than the number of places in parent's place
    - threads 14,15 execute on p1 with the place partition p0-p7
 
 **** Master affinity policy
-~#pragma omp parallel proc_bind(master) num_threads(4)~
+=#pragma omp parallel proc_bind(master) num_threads(4)=
 1) If the master thread is initially running on p0:
    - threads 0-3 execute on p0 with the place partition p0-p7
 2) If the master thread would initially be started on p2
    - threads 0-3 execute on p2 with the place partition p0-p7
 **** Questions:
 What is place partition? 
-For example, in a 2 socket system with 8 cores in each socket, and sequential numbering in the socket for the core numbers, the ~OMP_PLACES~ variable would be set to
+For example, in a 2 socket system with 8 cores in each socket, and sequential numbering in the socket for the core numbers, the =OMP_PLACES= variable would be set to
 "{0:8},{8:8}", using the place syntax {lower_bound:length:stride}, and the default stride is 1.
 
 *** Affinity query function
-- ~omp_get_num_places()~
-- ~omp_get_place_num_procs()~
-
-
-
+- ~omp_get_num_places()=
+- ~omp_get_place_num_procs()=
 ** Next plan
 - The OpenMP affinity is about allocating the executing of tasks among different CPUs. But where each CPU access which part of memory is not determined. We need to allocate memory on fixed cores. Such as,
 
   - Array[0..N] will be allocation among different cores. 
   - create multiple thread on those cores using OpenMP affinity 
-  - compute the results 
+  - compute the results
+
 * Bibliography
 bibliographystyle:abbrv
 bibliography:../parallel-numa.bib

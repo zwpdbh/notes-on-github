@@ -1,0 +1,78 @@
+* code block about sdc_kmeans.h
+From sdc_index.cpp
+#+BEGIN_SRC c++
+  for (int i = 0; i < depth; ++i) {
+    Matrix<float> mat(
+                      ddata + dimen * i, drows, dimen, dcols * sizeof(float));
+
+    // the place where build the kmeans
+    KMeans<L2<float>> kmeans(mat, par);
+    kmeans.buildIndex();
+
+    Cluster* clu = kmeans.getCluster();
+    clu->start   = dimen * i;
+    clusters.push_back(clu);
+   }
+#+END_SRC
+
+
+The above code leads to sdc_kmeans.h which contains you code integrated with FLANN' kmeans.
+I have several questions about it:
+1) =kmeans.buildIndex= will just call method flann::Index::buildIndex ?
+2) In your class: template <typename Distance> class KMeans : public NNIndex<Distance>
+   there is on part of code:
+   #+BEGIN_SRC c++
+     protected:
+     /**
+      ,* Builds the index
+      ,*/
+     void buildIndexImpl() {
+       if (branching_ < 2) {
+         throw FLANNException("Branching factor must be at least 2");
+       }
+
+       std::vector<int> indices(size_);
+       for (size_t i = 0; i < size_; ++i) {
+         indices[i] = int(i);
+       }
+
+       root_ = new (pool_) Node();
+       computeNodeStatistics(root_, indices);
+       computeClustering(root_, &indices[0], (int)size_, branching_);
+     }
+   #+END_SRC
+   Why it function used for? I haven't seen any other part of code used it.
+3) In your defined struct =Cluster=, you defined a other informations:
+   - centers, why is centers?.. I think there is just one center for one cluster
+   - radiuses,
+   - variances
+   - averages
+   - beLongTo, is it used for record down it is belong to which subpsace?
+   - num, it is used for counter the number of features in that cluster.
+   What is the usage for other variable? Only for doing statistics? If I use your algorithm as a base, but don't need to count the statistics, can I just ignore them?
+
+4) The code block in sdc_kmeans.h
+   #+BEGIN_SRC c++
+     for (int i = 0; i < c->rows; ++i) {
+       NodePtr child = root_->childs[i];
+       memcpy(c->centers + cur, child->pivot, size);
+       cur += veclen_;
+       for (size_t j = 0; j < child->points.size(); ++j) {
+         c->beLongTo[child->points[j].index] = i;
+       }
+       c->radiuses[i]  = child->radius;
+       c->variances[i] = child->variance;
+       c->averages[i]  = child->average;
+       c->num[i]       = child->points.size();
+      }
+   #+END_SRC
+   - For my understanding, it is processing the clusters got by flann's hierarchical kmeans algorithm, and mark each cluster with some info. 
+     But how does this line works: =c->beLongTo[child->points[j].index] = i;= ?
+
+5) There is a flann_kmeans_index.h, does it relates to SCF algirithm (sdc_kmeans.h)? If I do some modification on your SCF algirithm with NUMA consideration, do I need to modify flann_kmeans_index.h ?
+
+6) I didn't see many OpenMP directive usage. During my experience of implementing your algirithm, I found the most computational heavy part is the clustering part. But in your sdc_kmeans.h, there is no OpenMP parallel directive marks,does this because you already use FLANN for kmeans and it is already a parallel version?
+
+7) Why it is sdc_xxx while it is named SCF in your paper? I just want to make sure it is the same paper and algirithm we are talking about. Since you publiced several papers.
+
+
