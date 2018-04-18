@@ -41,7 +41,7 @@ I have several questions about it:
        computeClustering(root_, &indices[0], (int)size_, branching_);
      }
    #+END_SRC
-   Why it function used for? I haven't seen any other part of code used it.
+   Where this function is used for? I haven't seen any other part of code used it.
 3) In your defined struct =Cluster=, you defined a other informations:
    - centers, why is centers?.. I think there is just one center for one cluster
    - radiuses,
