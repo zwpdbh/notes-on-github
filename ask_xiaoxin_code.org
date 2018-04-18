@@ -69,6 +69,7 @@ I have several questions about it:
    #+END_SRC
    - For my understanding, it is processing the clusters got by flann's hierarchical kmeans algorithm, and mark each cluster with some info. 
      But how does this line works: =c->beLongTo[child->points[j].index] = i;= ?
+     
 
 5) There is a flann_kmeans_index.h, does it relates to SCF algirithm (sdc_kmeans.h)? If I do some modification on your SCF algirithm with NUMA consideration, do I need to modify flann_kmeans_index.h ?
 
