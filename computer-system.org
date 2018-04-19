@@ -56,7 +56,22 @@ the “programmer” in this case is either someone writing programs in assembly
   |------------------+---+---+----+----+---+---+---+---|
   | rmmovl rA, D(rB) | 4 | 0 | rA | rB |   |   |   |   |
   |------------------+---+---+----+----+---+---+---+---|
-
   
+  - initial byte 40
+  - source register %esp should be encoded in the rA field
+  - base register %edx should be encoded in the rB field
+  - From register number table:
+    | Number | Register name |
+    |--------+---------------|
+    |      0 | %eax          |
+    |      1 | %ecx          |
+    |      2 | %edx          |
+    |      3 | %ebx          |
+    |      4 | %esp          |
+    |      5 | %ebp          |
+    |      6 | %esi          |
+    |      7 | %edi          |
+    |      F | No register   |
+
 *** Questions
 - What's PC-relative addressing
