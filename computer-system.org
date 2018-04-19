@@ -1,0 +1,25 @@
+* Processor Architecture
+- start by defining a simple instruction set that use as a running example for processor implementations.
+- provide some Background on digital hardware design.
+- design a processor
+  - present a functionally correct but somewhat impractical processor based on sequential operation.
+  - with the sequential design as a basis, we then apply a series of transformations to create a pipelined processor.
+
+** The Y86 Instruction Set Architecture
+Defining an instruction set includes defining:
+- the different state elements
+- the set of instructions
+- the encodings
+- a set of programming conventions
+- and the handling of exceptional events
+
+*** Programmer-visible state
+the “programmer” in this case is either someone writing programs in assembly code or a compiler generating machine-level code
+- registers, have 8 including =%eax, %ecx, %edx, %ebx, %esi, %edi, %esp=, and =%ebp.=
+  - =%esp= is used as a stack pointer by the push, pop, call and return instruction.
+  - otherwise, the registers have no fixed meanings or values.
+- condition codes, 3 single-bit, =ZF, SF, OF=, storing the information about the efect of the most recent arithmetic or logical instruction.
+- PC, program counter holds the address of the instruction currently being executed.
+- memory, is conceptually a large arry of bytes, holding both program and data.
+- Stat, a status code.
+
