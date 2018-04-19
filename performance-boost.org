@@ -173,7 +173,8 @@
 ** The result is not very impressive, further investigation.
 - When I use set number of threads to 32, it is better than setting it to 64 which is the Maximum number of cpu on the machine.
 
-** Troubleshooting
+** Question
+- " From the software point of view, this remote memory can be used in the same way as local memory; it is fully cache coherent." What is cache coherent?
 - The following code could compile but during execution, it produces memory error messages
   #+BEGIN_SRC c
     #pragma omp parallel default(none) shared(m, n, b) private(eachRow, i, j)
@@ -188,6 +189,51 @@
         }
       }  
   #+END_SRC
+- On SMP system, there is a common optimization called cache affinity that is a bit similar. Cache affinity tries to keep data in the cache of a CPU instead of frequently ìbouncingî it between processors. This is commonly done by a scheduler in the operating system, which tries to keep threads on a CPU for some time before scheduling it on another. However, there is an important difference from node affinity: When a thread on an SMP system moves between CPUs, its cache contents eventually move with it. Once a memory area is committed to a specific node on a NUMA system, it stays there. A thread running on a different node that accesses it always adds traffic to the interconnect and leads to higher latency. This is why NUMA systems need to try harder to archive node affinity than SMP systems.
+
+  Why "When a thread on an SMP system moves between CPUs, its cache contents eventually move with it." ? How?
+
+** NUMA API
+*** Introduction
+- On an SMP(symmetric multiprocessing) system, all CPUs have equal access to the same shared memory controller that connects to all the memory chips (DIMMs). Communication between the CPUs also goes through this shared resource, which can become congested.
+- The number of memory chips that can be managed by the single controller is also limited, which limit how much memory can be suppported by the system. In addition, the latency to access memory through this single traffic hub is relative high.
+- The NUMA architecture was designed to surpass the scalability limits of the SMP architecture. Instead of having a single memory controller per computer, the system is split into multiple nodes.
+  - Each node has processors and its own memory.
+  - The processors have very fast access to the local memory in the node.
+  - All the nodes in the system are connected using a fast interconnect.
+- NUMA policy is concerned with putting memory allocations on specific nodes to let programs access them as quickly as possible.
+  *The primary way to do this is to allocate memory for a thread on its local node and keep the thread running there (node affinity)*
+  1) plan your thread execution, for which thread executing on which CPU 
+  2) allocate memory ahead based on the node position of that CPU
+- In addition to =numactl= library, =numastat= collect statistics about the memory allocation and =numademo= to show the effect of different policies on the system.
+
+*** Policies
+- Policies can be set process or per memory region.
+  - Policies set per memory region, also called VMA policies3, allow a process to set a policy for a block of memory in its address space. Memory region policies have a higher priority than the process policy.
+
+*** libnuma
+- =nodemask_t= is a fixed size bit set of node numbers.
+  #+BEGIN_SRC c
+    nodemask_set(&mask, maxnode); /* set node highest */
+    if (nodemask_isset(&mask, 1)) { /* is node 1 set? */
+      ...
+     }
+    nodemask_clr(&mask, maxnode); /* clear highest node again */
+
+  #+END_SRC
+  
+- allocation memory on node/set of nodes
+  1) =void *numa_alloc_onnode(size_t size, int node);=
+  2) =void *numa_alloc_interleaved_subset(size_t size, struct bitmask *nodemask);=
+
+- libnuma process policy
+  When existing code in a program cannot be modified to use the numa_alloc functions directly, it is sometimes useful to change the process policy in a program. This way, specific subfunctions can be run with a nondefault policy without actually modifying their code.
+  - Each thread has a default memory policy inherited from its parent. Unless changed with numactl, this policy is normally used to allocate memory preferably on the current node.
+  - =numa_set_interleave_mask= enables interleaving for the current thread. All future memory allocations allocate memory round robin interleaved over the nodemask specified.
+  - Process policy can also be used to set a policy for a child process before starting it.
+  - =numa_bind()= binds the current task and its children to the nodes specified in nodemask. They will only run on the CPUs of the specified nodes and only be able to allocate memory from them. This function is equivalent to calling =numa_run_on_node_mask(nodemask)= followed by =numa_set_membind(nodemask)=.
+    - =numa_run_on_node_mask()= runs the current task and its children only on nodes specified in =nodemask=. They will not migrate to CPUs of other nodes until the node affinity is reset with a new call to =numa_run_on_node_mask()=. Passing =numa_all_nodes= permits the kernel to schedule on all nodes again.
+    - =void numa_set_membind(struct bitmask *nodemask);= sets the memory allocation mask. The task will only allocate memory from the nodes set in nodemask.
 ** How to use libnuma to boost?
 - check numa architectures on Linux
   #+BEGIN_SRC sh
