@@ -52,11 +52,11 @@ the “programmer” in this case is either someone writing programs in assembly
   =rmmovl %esp,0x12345(%edx)= in hexadecimal
   
   According to the instruction set definition:
-  | Byte             | 0 |   |     1 | 2 | 3 | 4 | 5 |
-  |------------------+---+---+-------+---+---+---+---|
-  | /                | < | > |       |   |   |   |   |
-  | rmmovl rA, D(rB) | 4 | 0 | rA rB |   |   |   |   |
-  |------------------+---+---+-------+---+---+---+---|
+  | / | Byte             | 0 |   |     1 | 2 | 3 | 4 | 5 |
+  |---+------------------+---+---+-------+---+---+---+---|
+  | # | <>               | < | > |       |   |   |   |   |
+  | # | rmmovl rA, D(rB) | 4 | 0 | rA rB |   |   |   |   |
+  |---+------------------+---+---+-------+---+---+---+---|
 
   
 *** Questions
