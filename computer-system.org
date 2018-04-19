@@ -1,3 +1,27 @@
+* Assembly
+** Operation Suffixes
+Assembly instructions are generally suffixed with the letters "b", "s", "w", "l", "q" or "t" to determine what size operand is being manipulated.
+- b = byte (8 bit)
+- s = short (16 bit integer) or single (32-bit floating point)
+- w = word (16 bit)
+- l = long (32 bit integer or 64-bit floating point)
+- q = quad (64 bit)
+
+** Address operand syntax
+There are up to 4 parameters of an address operand that are presented in the syntax:
+=segment:displacement(base register, index register, scale factor)=
+
+It is equivalent to:
+=segment:[base register + displacement + index register * scale factor]=
+
+The base, index and displacement components can be used in any combination, and every component can be omitted.
+#+BEGIN_SRC asm
+          movl    -8(%ebp, %edx, 4), %eax  # Full example: load *(ebp + (edx * 4) - 8) into eax
+          movl    -4(%ebp), %eax           # Typical example: load a stack variable into eax
+          movl    (%ecx), %edx             # No index: copy the target of a pointer into a register
+          leal    8(,%eax,4), %eax         # Arithmetic: multiply eax by 4 and add 8
+          leal    (%edx,%eax,2), %eax      # Arithmetic: multiply eax by 2 and add edx
+#+END_SRC 
 * Processor Architecture
 - start by defining a simple instruction set that use as a running example for processor implementations.
 - provide some Background on digital hardware design.
@@ -23,3 +47,14 @@ the “programmer” in this case is either someone writing programs in assembly
 - memory, is conceptually a large arry of bytes, holding both program and data.
 - Stat, a status code.
 
+*** Instructions and encoding
+- As an example, let us generate the byte encoding of the instruction
+  =rmmovl %esp,0x12345(%edx)= in hexadecimal
+  
+  According to the instruction set definition:
+  | Byte             | 0 |   |  1 |  2 | 3 | 4 | 5 |   |
+  |------------------+---+---+----+----+---+---+---+---|
+  | rmmovl rA, D(rB) | 4 | 0 | rA | rB |   |   |   |   | 
+  
+*** Questions
+- What's PC-relative addressing
