@@ -72,6 +72,17 @@ the “programmer” in this case is either someone writing programs in assembly
     |      6 | %esi          |
     |      7 | %edi          |
     |      F | No register   |
+    The register specifier byte of 42. 
+  - The displacement is encoded in the 4-byte constant word.
+  - Put them togeter
+    1) pad =0x12345= with leading zero to fill out 4 bytes, giving a byte sequence of =00 01 23 45=.
+    2) write this in byte-reversed order as =45 23 01 00=.
+    3) Combine with these, we get an instruction encoding =404245230100=.
+- One important property of any instruction set is that the byte encodings must have a unique interpretation. An arbitrary sequence of bytes either encodes a unique instruction sequence or is not a legal byte sequence.
+  - This property holds for Y86, because every instruction has a unique combination of code and function in its initial byte, and given this byte, we can determine the length and meaning of any additional bytes. This property ensures that a processor can execute an object- code program without any ambiguity about the meaning of the code. Even if the code is embedded within other bytes in the program, we can readily determine the instruction sequence as long as we start from the first byte in the sequence.
+  - On the other hand, if we do not know the starting position of a code sequence, we cannot reliably determine how to split the sequence into individual instructions. This causes problems for disassemblers and other tools that attempt to extract machine-level programs directly from object-code byte sequences.
 
+*** Y86 Exceptions
+  
 *** Questions
 - What's PC-relative addressing
