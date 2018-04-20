@@ -83,6 +83,14 @@ the “programmer” in this case is either someone writing programs in assembly
   - On the other hand, if we do not know the starting position of a code sequence, we cannot reliably determine how to split the sequence into individual instructions. This causes problems for disassemblers and other tools that attempt to extract machine-level programs directly from object-code byte sequences.
 
 *** Y86 Exceptions
-  
+The programmer-visible state for Y86 includes a status code Stat describing the overall state of the executing program. The possible values for this code are:
+| value | Name | Meaning                         |
+|     1 | AOK  | Normal operation                |
+|     2 | HLT  | halt = instruction encountered  |
+|     3 | ADR  | Invalid address encountered     |
+|     4 | INS  | Invalid instruction encountered |
+#+TBLFM: $3=halt= instruction encountered
+In Y86, the processor will halts for any code other than AOK.
+
 *** Questions
 - What's PC-relative addressing
