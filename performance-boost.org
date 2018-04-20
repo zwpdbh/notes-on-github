@@ -347,7 +347,7 @@
 - cd ..
 - mkdir objdir
 - cd objdir
-- $PWD/../gcc-7.2.0/configure --prefix=$HOME/gcc-7.2.0 --disable-multilib
+- =$PWD/../gcc-7.2.0/configure --prefix=$HOME/gcc-7.2.0 --disable-multilib=
   - =disable-multilib= means only support 64-bits version.
 - make 
 - make install 
