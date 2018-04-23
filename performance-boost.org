@@ -271,16 +271,16 @@
   #+BEGIN_SRC sh
     wzhao@r815:~/numa-knn$ numactl --hardware
     available: 8 nodes (0-7)
-    node 0 cpus: 0 4 8 12 16 20 24 28
+    node 0 cpus: 0 4 8 12 16 20 24 28        === 
     node 0 size: 65526 MB
     node 0 free: 62754 MB
-    node 1 cpus: 32 36 40 44 48 52 56 60
+    node 1 cpus: 32 36 40 44 48 52 56 60     === 
     node 1 size: 65536 MB
     node 1 free: 60707 MB
-    node 2 cpus: 2 6 10 14 18 22 26 30
+    node 2 cpus: 2 6 10 14 18 22 26 30      ===
     node 2 size: 65536 MB
     node 2 free: 63404 MB
-    node 3 cpus: 34 38 42 46 50 54 58 62
+    node 3 cpus: 34 38 42 46 50 54 58 62   ===
     node 3 size: 65536 MB
     node 3 free: 63005 MB
     node 4 cpus: 3 7 11 15 19 23 27 31
@@ -338,6 +338,25 @@
     From initialization to finished, use: 12ms
   #+END_SRC
 
+** Result comparision
+Matrix * Vector 100000 * 100000 dimensions
+#+BEGIN_SRC sh
+  wzhao@r815:~/numa-knn$ ./bin/serial_version 32000 32000
+
+  wzhao@r815:~/numa-knn$ ./bin/numa_openmp 32000 32000 32
+  The number of highest possible node in the system is: 63
+  OMP_PLACES={0, 4, 8, 12, 16, 20, 24, 28}, {32, 36, 40, 44, 48, 52, 56, 60}, {2, 6, 10, 14, 18, 22, 26, 30}, {34, 38, 42, 46, 50, 54, 58, 62}
+
+  wzhao@r815:~/numa-knn$ ./bin/openmp_without_numa 32000 32000 32
+  OMP_PLACES={0, 4, 8, 12, 16, 20, 24, 28}, {32, 36, 40, 44, 48, 52, 56, 60}, {2, 6, 10, 14, 18, 22, 26, 30}, {34, 38, 42, 46, 50, 54, 58, 62}
+#+END_SRC
+| Index | serial version | OpenMP with NUMA | OpenMP without NUMA |
+|     1 | 29123ms        | 15406ms          | 14481ms             |
+|     2 | 29273ms        | 15454ms          | 14413ms             |
+|     3 | 28831ms        | 15371ms          | 14520ms             |
+|     4 | 28855ms        | 15483ms          | 14650ms             |
+|     5 | 28904ms        | 15390ms          | 15027ms             |
+
 * Troubleshooting
 ** GCC version is 4.8 not enough to support OpenMP 4.0 for proc_bind functionality
 - download gcc7.2 
@@ -353,4 +372,22 @@
 - make install 
 
 Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
+
+** Error during executing compiled program 
+#+BEGIN_SRC sh
+  wzhao@r815:~/numa-knn$ ./bin/openmp_with_numa 8 8 8
+  ./bin/openmp_with_numa: /usr/lib/x86_64-linux-gnu/libstdc++.so.6: version `GLIBCXX_3.4.19' not found (required by ./bin/openmp_with_numa)
+  ./bin/openmp_with_numa: /usr/lib/x86_64-linux-gnu/libgomp.so.1: version `GOMP_4.0' not found (required by ./bin/openmp_with_numa)
+#+END_SRC
+- reason: the program is using the system default OpenMP
+- solution:
+  1) find the new OpenMP library
+     #+BEGIN_SRC sh
+        wzhao@r815:~/numa-knn$ find /usr find / name -name libgomp.so.1
+        /usr/lib/x86_64-linux-gnu/libgomp.so.1
+        /usr/local/lib32/libgomp.so.1
+        /usr/local/lib64/libgomp.so.1
+     #+END_SRC
+  2) set the path to newer version in =LD_LIBRARY_PATH=.
+     =export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/wzhao/gcc-4.9.4/lib64/=
 
