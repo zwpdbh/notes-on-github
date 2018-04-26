@@ -1,0 +1,13 @@
+* pthread
+** Thread Creation
+#+BEGIN_SRC c
+  #include <pthread.h>
+  int pthread_create(pthread_t *restrict tidp,
+                     const pthread_attr_t *restrict attr,
+                     void *(*start_rtn)(void *), void *restrict arg);
+#+END_SRC
+- =tidp=, newly created thread
+- =attr=, is used to customize various thread attributes.
+- =start_rtn=, the newly created thread starts running at the address of =start_rtn= function.
+  - This function takes a single argument, =arg=, which is a typeless point.
+  - If you need to pass more than one argument to the =start_rtn= function, then you need to store them in a structure and pass the address of the structure in arg.

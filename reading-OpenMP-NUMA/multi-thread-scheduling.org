@@ -1,0 +1,17 @@
+* Scheduling Multithreaded Computations by Work Stealing cite:blumofe99_sched_multit_comput_by_work_steal
+** Introduction
+- They present and analyze a work-stealing algorithm for scheduling "fully-strict" (well-structured) multithreaded computations. This class of computations encompasses:
+  - backtrack search computations
+  - divide-and-conquer computations
+  - dataflow computations in which threads may stall due to a data dependency.
+- analyze algorithms in a stringent atomic-access model similar to the atomic message passing model cite:liu93, in which concurrent access to the same data structure are serially queued by an aversary. 
+- Part of the improvement is due to the focus on fully strict computations.
+  - What is the differences between strict computations and (general) strict computations studies in cite:blumofe98_space_effic_sched_multit_comput.
+- Problem of efficiently managing the space requirements of parallel computations.
+- graph-theoretic model of multithreaded computations from cite:blumofe98_space_effic_sched_multit_comput.
+- "busy-leave" algorithm forms the basis for our randomized work-stealing algorithm.
+- atomic-access model is used to analyze execution time and communication costs
+
+* Bibliography
+bibliographystyle:abbrv
+bibliography:../parallel-numa.bib

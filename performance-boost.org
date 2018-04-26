@@ -357,6 +357,8 @@ Matrix * Vector 100000 * 100000 dimensions
 |     4 | 28855ms        | 15483ms          | 14650ms             |
 |     5 | 28904ms        | 15390ms          | 15027ms             |
 
+** measurement time 
+- 
 * Troubleshooting
 ** GCC version is 4.8 not enough to support OpenMP 4.0 for proc_bind functionality
 - download gcc7.2 
@@ -390,4 +392,130 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
      #+END_SRC
   2) set the path to newer version in =LD_LIBRARY_PATH=.
      =export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/wzhao/gcc-4.9.4/lib64/=
+
+** Execution record 
+- experiment show different execution time on the matrix assignment code for 1) from local node 2) from remote node
+|   Index | serial on local node | serial on remote node |
+|       1 | 24243ms              | 29185ms               |
+|       2 | 26409ms              | 28327ms               |
+|       3 | 24598ms              | 28099ms               |
+|       4 | 25857ms              | 27667ms               |
+|       5 | 26112ms              | 27980ms               |
+|       6 | 24398ms              | 29055ms               |
+|       7 | 25489ms              | 28016ms               |
+|       8 | 25214ms              | 28432ms               |
+|       9 | 25606ms              | 28209ms               |
+|      10 | 25341ms              | 28076ms               |
+|---------+----------------------+-----------------------|
+| Average | 25326.7 ms           | 28304.6 ms            |
+
+
+
+- experiment show different execution time on matrix time vector code for 
+  1) aware of NUMA
+     parallel 32 threads on 4 node, allocate memory on those 4 nodes
+  2) unawere of NUMA
+     parallel 32 threads
+
+|   Index | unaware of NUMA | aware of NUMA |
+|       1 | 12580ms         | 14579ms       |
+|       2 | 13036ms         | 14709ms       |
+|       3 | 12646ms         | 14922ms       |
+| average | 12754 ms        | 14736.667 ms  |
+
+#+TBLFM: @5$2=vmean(@2..@4)::@5$3=vmean(@2..@4
+*** try to use first touch to make the allocation easier, not working
+  - 57956ms
+  - code block
+    #+BEGIN_SRC c
+      #pragma omp parallel for schedule(static)  proc_bind(close) num_threads(n_cpu) default(none) shared(c, n) private(i)
+      for (i = 0; i < n; i++) {
+        //    int thread_num = omp_get_thread_num();
+        //    int cpu_num = sched_getcpu();
+        //    printf("Thread %3d is running on CPu %3d, on node %d\n", thread_num, cpu_num, topology[cpu_num]);
+        c[i] = 2.0;
+       }
+    #+END_SRC
+*** Use vector<float*> instead of vector<float>  to use libnuma to allocate sizeof(float) memory on specific node
+table shows the experiment result, unit is ms.
+- column 2 shows case of allocation according to memory affinity
+- column 3 shows case of allocate vector<float*> on node 7
+|   index | numa_openmp | anti_numa_openmp | openmp_without_numa |
+|---------+-------------+------------------+---------------------|
+|       1 |        1010 |             1023 |                 516 |
+|       2 |        1014 |             1009 |                 523 |
+|       3 |        1015 |             1010 |                 522 |
+|       4 |        1013 |             1024 |                 523 |
+|       5 |        1016 |             1008 |                 543 |
+| Average |      1013.6 |           1014.8 |               525.4 |
+
+#+TBLFM: $3=vmean(@2..@6)::@7$2=vmean(@2..@6)::@7$4=vmean(@2..@6)
+- code block of using vector<float*> to represent vector and use it to compute matrix vector multiplication
+#+BEGIN_SRC c
+  vector<float*> a;
+  vector<float*> b;
+  vector<float*> c;
+
+
+  #pragma omp parallel proc_bind(close) num_threads(n_cpu) default(none) shared(m, n, a, b, c, topology) private(i, j, eachRow, a_each, c_each)
+  {
+    int thread_num = omp_get_thread_num();
+    int cpu_num = sched_getcpu();
+
+    printf("Thread %3d is running on CPU %3d, on node %d\n", thread_num, cpu_num, topology[cpu_num]);
+      
+  #pragma omp for ordered schedule (static)
+    for (i = 0; i < m; i++) {
+
+      eachRow = NULL;
+      a_each = NULL;
+      c_each = NULL;
+
+      cpu_num = sched_getcpu();
+      int which_node = topology[cpu_num];
+
+      eachRow = (float*)numa_alloc_onnode(n * sizeof(float), which_node);
+      a_each = (float*)numa_alloc_onnode(sizeof(float), which_node);
+      c_each = (float*)numa_alloc_onnode(sizeof(float), which_node);
+
+      if (eachRow == NULL || a_each == NULL || c_each == NULL) {
+        printf("error during allocation numa memory on node %d\n", cpu_num);
+        exit(-1);
+      }
+
+      a_each[0] = 0.0;
+      c_each[0] = 2.0;
+      for (j = 0; j < n; j++) {
+        eachRow[j] = 2.0;
+      }
+
+  #pragma omp ordered
+      a.push_back(a_each);
+  #pragma omp ordered
+      b.push_back(eachRow);
+  #pragma omp ordered
+      c.push_back(c_each);
+    }
+
+
+    printf("Check if the thread is paralleled as planed\n");
+    auto started = std::chrono::high_resolution_clock::now();
+  #pragma omp parallel proc_bind(close) num_threads(n_cpu) default(none) shared(a,b,c,m,n, topology) private(i, j)
+    {
+      int thread_num = omp_get_thread_num();
+      int cpu_num = sched_getcpu();
+
+      printf("Thread %3d is running on CPU %3d, on node %d\n", thread_num, cpu_num, topology[cpu_num]);
+
+  #pragma omp for schedule (static)
+      for (i = 0; i < m; i++) {
+        for (j = 0; j < n; j++) {
+          a[i][0] += (b[i][j] * (*c[i]));
+        }
+      }  
+    }
+
+    auto done = std::chrono::high_resolution_clock::now();
+    std::cout << "From initialization to finished, use: " << std::chrono::duration_cast<std::chrono::milliseconds>(done-started).count() << "ms" << endl;
+#+END_SRC
 
