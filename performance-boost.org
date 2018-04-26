@@ -376,6 +376,7 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
 
 ** Execution record 
 *** experiment show different execution time on the matrix assignment code for 1) from local node 2) from remote node
+- Remote case: allocate memory on node 7, while make the executing process is on CPUs from node 0.
 |   Index | serial on local node | serial on remote node |
 |       1 | 24243ms              | 29185ms               |
 |       2 | 26409ms              | 28327ms               |
@@ -388,8 +389,6 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
 |       9 | 25606ms              | 28209ms               |
 |      10 | 25341ms              | 28076ms               |
 | Average | 25326.7 ms           | 28304.6 ms            |
-
-
 
 *** experiment show different execution time on matrix time vector code for 
   1) aware of NUMA
