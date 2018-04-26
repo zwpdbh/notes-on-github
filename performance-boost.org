@@ -387,7 +387,6 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
 |       8 | 25214ms              | 28432ms               |
 |       9 | 25606ms              | 28209ms               |
 |      10 | 25341ms              | 28076ms               |
-|---------+----------------------+-----------------------|
 | Average | 25326.7 ms           | 28304.6 ms            |
 
 
