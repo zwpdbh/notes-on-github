@@ -404,6 +404,9 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
 | average | 12754 ms        | 14736.667 ms  |
 
 #+TBLFM: @5$2=vmean(@2..@4)::@5$3=vmean(@2..@4
+- the reason why NUMA aware version is worse than not using NUMA is the vector is allocated on a specific node, so even each row of matrix is allocated according to memory affinity, it is slower during matrix * vector. Because for most of the row, the memory on vector is on remote node.
+- I need to allocate vector's memory according to memory affinity.
+
 *** Use vector<float*> instead of vector<float>  to use libnuma to allocate sizeof(float) memory on specific node
 table shows the experiment result, unit is ms.
 - column 2 shows case of allocation according to memory affinity
