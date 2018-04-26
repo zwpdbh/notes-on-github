@@ -338,25 +338,6 @@
     From initialization to finished, use: 12ms
   #+END_SRC
 
-** Result comparision
-Matrix * Vector 100000 * 100000 dimensions
-#+BEGIN_SRC sh
-  wzhao@r815:~/numa-knn$ ./bin/serial_version 32000 32000
-
-  wzhao@r815:~/numa-knn$ ./bin/numa_openmp 32000 32000 32
-  The number of highest possible node in the system is: 63
-  OMP_PLACES={0, 4, 8, 12, 16, 20, 24, 28}, {32, 36, 40, 44, 48, 52, 56, 60}, {2, 6, 10, 14, 18, 22, 26, 30}, {34, 38, 42, 46, 50, 54, 58, 62}
-
-  wzhao@r815:~/numa-knn$ ./bin/openmp_without_numa 32000 32000 32
-  OMP_PLACES={0, 4, 8, 12, 16, 20, 24, 28}, {32, 36, 40, 44, 48, 52, 56, 60}, {2, 6, 10, 14, 18, 22, 26, 30}, {34, 38, 42, 46, 50, 54, 58, 62}
-#+END_SRC
-| Index | serial version | OpenMP with NUMA | OpenMP without NUMA |
-|     1 | 29123ms        | 15406ms          | 14481ms             |
-|     2 | 29273ms        | 15454ms          | 14413ms             |
-|     3 | 28831ms        | 15371ms          | 14520ms             |
-|     4 | 28855ms        | 15483ms          | 14650ms             |
-|     5 | 28904ms        | 15390ms          | 15027ms             |
-
 ** measurement time 
 - 
 * Troubleshooting
