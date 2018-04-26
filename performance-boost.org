@@ -375,7 +375,7 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
      =export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/wzhao/gcc-4.9.4/lib64/=
 
 ** Execution record 
-- experiment show different execution time on the matrix assignment code for 1) from local node 2) from remote node
+*** experiment show different execution time on the matrix assignment code for 1) from local node 2) from remote node
 |   Index | serial on local node | serial on remote node |
 |       1 | 24243ms              | 29185ms               |
 |       2 | 26409ms              | 28327ms               |
@@ -391,7 +391,7 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
 
 
 
-- experiment show different execution time on matrix time vector code for 
+*** experiment show different execution time on matrix time vector code for 
   1) aware of NUMA
      parallel 32 threads on 4 node, allocate memory on those 4 nodes
   2) unawere of NUMA
@@ -404,18 +404,6 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
 | average | 12754 ms        | 14736.667 ms  |
 
 #+TBLFM: @5$2=vmean(@2..@4)::@5$3=vmean(@2..@4
-*** try to use first touch to make the allocation easier, not working
-  - 57956ms
-  - code block
-    #+BEGIN_SRC c
-      #pragma omp parallel for schedule(static)  proc_bind(close) num_threads(n_cpu) default(none) shared(c, n) private(i)
-      for (i = 0; i < n; i++) {
-        //    int thread_num = omp_get_thread_num();
-        //    int cpu_num = sched_getcpu();
-        //    printf("Thread %3d is running on CPu %3d, on node %d\n", thread_num, cpu_num, topology[cpu_num]);
-        c[i] = 2.0;
-       }
-    #+END_SRC
 *** Use vector<float*> instead of vector<float>  to use libnuma to allocate sizeof(float) memory on specific node
 table shows the experiment result, unit is ms.
 - column 2 shows case of allocation according to memory affinity
