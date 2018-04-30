@@ -603,6 +603,6 @@ table shows the experiment result, unit is ms.
 
 In general, data parallelisation in the case of matrix time matrix could not be computed efficiently using OpenMP with NUMA awareness configuration. 
 
-  Data parallelisation with NUMA awareness could be hard since any interaction part in the parallel region will require access from remote nodes(because you generate threads on different CPUs => different nodes). Thus, the result will be similar with averagely allocation memory across different nodes which is the default setting for NUMA. The more frequently the interaction is, the less effect of NUMA allocation will be.
+  Data parallelisation with NUMA awareness could be hard since any interaction part in the parallel region will require access from remote nodes(because you generate threads on different CPUs => different nodes). Thus, the result will be similar with averagely allocation memory across different nodes which is the default setting for NUMA. The more frequently the interaction is, the less effect of NUMA allocation will be. It is not about how to allocate memory with NUMA, it is about the interaction between different parts of data which is inherited from the algorithm.
   
   So, a simple "solution" will be make multiple copy of data and let each thread works on its own corresponding copy. That is a kind of  task parallelism and I doult about the practical usage of it. 
