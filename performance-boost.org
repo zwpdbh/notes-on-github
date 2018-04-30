@@ -489,3 +489,90 @@ table shows the experiment result, unit is ms.
     std::cout << "From initialization to finished, use: " << std::chrono::duration_cast<std::chrono::milliseconds>(done-started).count() << "ms" << endl;
 #+END_SRC
 
+*** To fully control the code behaviour, use C **float instead of C++ vector<float*>
+- pointer as array, the following pairs of execution has the same effect
+#+BEGIN_SRC c
+  printf("the address of a is %ld\n", a);
+  printf("*a = %ld\n", *a);
+  printf("a[0] = %ld\n", a[0]);
+
+  printf("*(a+1) = %ld\n", *(a+1));
+  printf("a[1] = %ld\n", a[1]);
+    
+  printf("*(*(a+i) + j) = %f\n", *(*(a+1) + 0));
+  printf("a[i][j] = %f\n", a[1][0]);
+
+#+END_SRC
+
+- code block which allocate memory, a, b, c are 2 dimensional array, as matrix
+  #+BEGIN_SRC c
+    float** a;
+    float** b;
+    float** c;
+      
+    b = (float**) emalloc(m * sizeof(float*));
+    c = (float**) emalloc(m * sizeof(float*));
+    a = (float**) emalloc(m * sizeof(float*));
+  #+END_SRC
+
+- code block which allocates numa memory on specific node
+#+BEGIN_SRC c
+  #pragma omp for ordered schedule (static)
+  for (i = 0; i < m; i++) {
+
+    cpu_num = sched_getcpu();
+    int which_node = topology[cpu_num];
+        
+    b[i] = (float*)numa_alloc_onnode(n * sizeof(float), which_node);
+    a[i] = (float*)numa_alloc_onnode(sizeof(float), which_node);
+    c[i] = (float*)numa_alloc_onnode(sizeof(float), which_node);
+
+    if (b[i] == NULL || a[i] == NULL || c[i] == NULL) {
+      printf("error during allocation numa memory on node %d\n", cpu_num);
+      exit(-1);
+    }
+
+    a[i][0] = 0.0;
+    c[i][0] = 2.0;
+    for (j = 0; j < n; j++) {
+      b[i][j] = 2.0;
+    }
+   }    
+  }
+#+END_SRC
+
+- code block which does execution of matrix time vector and messures time
+ #+BEGIN_SRC c
+   #pragma omp parallel proc_bind(close) num_threads(n_cpu) default(none) shared(a,b,c,m,n) private(i, j)
+     {
+   #pragma omp for schedule (static)
+       for (i = 0; i < m; i++) {
+         for (j = 0; j < n; j++) {
+           ,*(*(a+i) + 0) += ( *(*(b+i) +j) * (*(*(c +j) +0)));
+           //      a[i][0] += (b[i][j] * c[j][0]);
+         }
+       }  
+     }
+
+   auto done = std::chrono::high_resolution_clock::now();
+   std::cout << "From initialization to finished, use: " << std::chrono::duration_cast<std::chrono::milliseconds>(done-started).count() << "ms" << endl;
+ #+END_SRC
+
+**** time mesurement 
+#+BEGIN_SRC sh
+  cat numa_openmp.sh
+  export OMP_PLACES="{0, 4, 8, 12, 16, 20, 24, 28}, {32, 36, 40, 44, 48, 52, 56, 60}, {2, 6, 10, 14, 18, 22, 26, 30}, {34, 38, 42, 46, 50, 54, 58, 62}, {3, 7, 11, 15, 19, 23, 27, 31}, {35, 39, 43, 47, 51, 55, 59, 63}, {1, 5, 9, 13, 17, 21, 25, 29}, {33, 37, 41, 45, 49, 53, 57, 61}"
+  ./bin/numa_openmp 16000 16000 8
+  ./bin/anti_numa_openmp 16000 16000 8
+  ./bin/openmp_without_numa 16000 16000 8
+#+END_SRC
+|   id | use libnuma(ms) | not use libnuma(ms) | use libnuma on remote node |
+|    1 |            3880 |                 420 |                       3934 |
+|    2 |            4034 |                 416 |                       3973 |
+|    3 |            4020 |                 418 |                       3960 |
+|    4 |            3975 |                 419 |                       3951 |
+|    5 |            4033 |                 413 |                       3908 |
+| mean |          3988.4 |               417.2 |                     3945.2 |
+#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
+- It seems this approach make the libnuma case becomes worse.
+- The execution time of using libnuma and the execution time of using libnuma but allocated memory deliberately on remote node is also similar. This indicate I have lot of remote memory access cases.
