@@ -576,3 +576,32 @@ table shows the experiment result, unit is ms.
 #+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
 - It seems this approach make the libnuma case becomes worse.
 - The execution time of using libnuma and the execution time of using libnuma but allocated memory deliberately on remote node is also similar. This indicate I have lot of remote memory access cases.
+
+- This whole program is wrong because each row of the matrix need to multiple very element of vector, there is no point of allocation vector across multiple nodes.
+
+*** OpenMP is a good choice for doing Matrix times Matrix with NUMA Awareness
+**** The initial basic idea of using OpenMP with NUMA
+- OpenMP is doing data parallelisation via =for= loop. OpenMP distributes the data across different threads and each thread works on one chunck of data and in the end merge the result.
+- NUMA is about memory affinity. If the thread and the data it is accessing is located on the same node, then the accessing speed will be faster than remote accessing.
+- Using OpenMP data parallelisation with NUMA awareness. My initial plan is:
+  1) first configure OpenMP environment to control where and how OpenMP generate thread based on the =for= loop.
+     This is the so called =proc_bind=, such as make sure generated: thread 1 is running on cpu01
+     thread 2 is running on cpu02
+  2) Based on NUMA topology, such cpu01 is on node01, cpu02 is on node02. Allocate data's memory among different threads, so data's memory is distributed allocated by different threads, which in turn allocated on different cpu ==> on different nodes.
+  3) When I do the computation using data. I make sure use the same OpenMP parallel schema, such that the generate threads are as same as before. Thus, each thread will be able to read its part of data locally since the corresponding part of data memory has been allocated on the right node already.
+  4) This idea need to make sure the size of different data matches each other.
+- Case study why this doesn't work, on matrix time matrix:
+  - suppose matrix m which is 2 * 5 , times matrix n which is 5 * 2.
+
+  - allocate memory using OpenMP, in the loop, allocate each row of m on different threads while allocate each column of n on the same different threads. Then initalize each element.
+  - For the result matrix w which 2 * 2. Then it has the following problem:
+    | 00 | 01 |
+    |----+----|
+    | 10 | 11 | 
+    - if w is allocated row by row, which means 00, 01 is on node0, 10 and 11 is on node1. Then during computation, remote access will happend on 01(on node0) since it is the result of the first row of m which is on node 0times the second column of n which is on node 1. Similar thing happened on 10.
+    - In fact, only left to right diagonal element which is refered in double lopp as i == j can avoid remote access.
+- In general, data parallelisation in the case of matrix time matrix could not be computed efficiently using OpenMP with NUMA awareness configuration. 
+
+  Data parallelisation with NUMA awareness could be hard since any interaction part in the parallel region will require access from remote nodes(because you generate threads on different CPUs => different nodes). Thus, the result will be similar with averagely allocation memory across different nodes which is the default setting for NUMA. The more frequently the interaction is, the less effect of NUMA allocation will be.
+  
+  So, a simple "solution" will be make multiple copy of data and let each thread works on its own corresponding copy. That is a kind of  task parallelism and I doult about the practical usage of it. 
