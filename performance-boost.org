@@ -600,7 +600,8 @@ table shows the experiment result, unit is ms.
     | 10 | 11 | 
     - if w is allocated row by row, which means 00, 01 is on node0, 10 and 11 is on node1. Then during computation, remote access will happend on 01(on node0) since it is the result of the first row of m which is on node0 times the second column of n which is on node 1. Similar thing happened on 10.
     - In fact, only left to right diagonal element which is refered in double loop as i == j can avoid remote access.
-- In general, data parallelisation in the case of matrix time matrix could not be computed efficiently using OpenMP with NUMA awareness configuration. 
+
+In general, data parallelisation in the case of matrix time matrix could not be computed efficiently using OpenMP with NUMA awareness configuration. 
 
   Data parallelisation with NUMA awareness could be hard since any interaction part in the parallel region will require access from remote nodes(because you generate threads on different CPUs => different nodes). Thus, the result will be similar with averagely allocation memory across different nodes which is the default setting for NUMA. The more frequently the interaction is, the less effect of NUMA allocation will be.
   
