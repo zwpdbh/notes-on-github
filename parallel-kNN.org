@@ -1,0 +1,32 @@
+* Use pthread to parallel my scf-knn algorithm
+- current performance measured in nano seconds:
+Dataset is from xiaoxin's paper. =kNN.scfKNN(2, 2, 20);=
+|   id | execution time |
+|    1 |         501288 |
+|    2 |         475445 |
+|    3 |         484078 |
+|    4 |         489217 |
+|    5 |         470699 |
+|    6 |         476141 |
+|    7 |         473215 |
+|    8 |         477931 |
+|    9 |         472731 |
+|   10 |         676848 |
+|   11 |         489928 |
+|   12 |         482915 |
+|   13 |         494304 |
+|   14 |         494685 |
+|   15 |         494683 |
+|   16 |         483684 |
+|   17 |         446690 |
+|   18 |         448723 |
+|   19 |         469567 |
+|   20 |         641531 |
+| mean |      497215.15 |
+|   21 |         670889 |
+
+#+TBLFM: @22$2=vmean(@2..@21)
+
+** Serial version code optimization
+change from =std::vector<std::vector<float> >= to =std::vector<std::vector<float>* >=
+
