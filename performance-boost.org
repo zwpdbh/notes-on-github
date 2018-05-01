@@ -541,7 +541,7 @@ Referenced from [[https://gcc.gnu.org/wiki/InstallingGCC][install gcc]].
   2) set the path to newer version in =LD_LIBRARY_PATH=.
      =export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/wzhao/gcc-4.9.4/lib64/=
 
-** Execution record 
+** Execution record using OpenMP 
 *** Experiment show different execution time on matrix time vector code for 
   1) aware of NUMA
      parallel 32 threads on 4 node, allocate memory on those 4 nodes
