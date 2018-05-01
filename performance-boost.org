@@ -609,6 +609,20 @@ In general, data parallelisation in the case of matrix time matrix could not be 
 
 ** Use pthread to do the experiment
 To eliminate other errors which could be caused by using OpenMP, I use pthread to do the test. Also, using OpenMP is not every convonient to test different situations since you need to set OpenMP environment and remember to use the correct in different program.
+- also use tick() to measure time
+#+BEGIN_SRC c
+  inline uint64_t tick() {
+    uint32_t tmp[2];
+    __asm__ ("rdtsc" : "=a" (tmp[1]), "=d" (tmp[0]) : "c" (0x10) );
+    return (((uint64_t) tmp[0]) << 32) | tmp[1];
+  }
+
+  start = tick();
+  // do something
+  end = tick();
+  printf("%llu ", end - start);
+
+#+END_SRC
 *** Test serial version of code for memory access time
 **** code to measure access time
 #+BEGIN_SRC c
