@@ -1,6 +1,150 @@
 * Performance monitor on AMD
 ** What criteria do I need to measure to identify the performance bottleneck?
 ** How to monitor each of those criteria?
+* Performance bost using libnuma
+** How to use libnuma to boost?
+- check numa architectures on Linux
+  #+BEGIN_SRC sh
+    wzhao@r815:~/numa-knn$ numactl --hardware
+    available: 8 nodes (0-7)
+    node 0 cpus: 0 4 8 12 16 20 24 28        === 
+    node 0 size: 65526 MB
+    node 0 free: 62754 MB
+    node 1 cpus: 32 36 40 44 48 52 56 60     === 
+    node 1 size: 65536 MB
+    node 1 free: 60707 MB
+    node 2 cpus: 2 6 10 14 18 22 26 30      ===
+    node 2 size: 65536 MB
+    node 2 free: 63404 MB
+    node 3 cpus: 34 38 42 46 50 54 58 62   ===
+    node 3 size: 65536 MB
+    node 3 free: 63005 MB
+    node 4 cpus: 3 7 11 15 19 23 27 31
+    node 4 size: 65536 MB
+    node 4 free: 62909 MB
+    node 5 cpus: 35 39 43 47 51 55 59 63
+    node 5 size: 65536 MB
+    node 5 free: 63202 MB
+    node 6 cpus: 1 5 9 13 17 21 25 29
+    node 6 size: 65536 MB
+    node 6 free: 11 MB
+    node 7 cpus: 33 37 41 45 49 53 57 61
+    node 7 size: 65520 MB
+    node 7 free: 51391 MB
+    node distances:
+    node   0   1   2   3   4   5   6   7 
+    0:  10  16  16  22  16  22  16  22 
+    1:  16  10  22  16  16  22  22  16 
+    2:  16  22  10  16  16  16  16  16 
+    3:  22  16  16  10  16  16  22  22 
+    4:  16  16  16  16  10  16  16  22 
+    5:  22  22  16  16  16  10  22  16 
+    6:  16  22  16  22  16  22  10  16 
+    7:  22  16  16  22  22  16  16  10 
+  #+END_SRC
+  - There are seven processors, each has 7 cores
+    
+*** How to retrieve the core id in which a thread is running? 
+  Use =sched_getcpu()=
+  #+BEGIN_SRC c
+    #include <stdio.h>
+    #include <sched.h>
+    #include <omp.h>
+
+    int main() {
+    #pragma omp parallel
+      {
+        int thread_num = omp_get_thread_num();
+        int cpu_num = sched_getcpu();
+        printf("Thread %3d is running on CPU %3d\n", thread_num, cpu_num);
+      }
+
+      return 0;
+    }
+  #+END_SRC
+  
+  Use command line to check the affinity and execution result:
+  #+BEGIN_SRC sh
+    wzhao@r815:~/numa-knn$ GOMP_CPU_AFFINITY='0,1,2,3' ./bin/openmp_with_numa 10 10 4
+    The number of highest possible node in the system is: 63
+    Thread   0 is running on CPU   0
+    Thread   1 is running on CPU   1
+    Thread   3 is running on CPU   3
+    Thread   2 is running on CPU   2
+    From initialization to finished, use: 12ms
+  #+END_SRC
+** NUMA API
+*** Introduction
+- On an SMP(symmetric multiprocessing) system, all CPUs have equal access to the same shared memory controller that connects to all the memory chips (DIMMs). Communication between the CPUs also goes through this shared resource, which can become congested.
+- The number of memory chips that can be managed by the single controller is also limited, which limit how much memory can be suppported by the system. In addition, the latency to access memory through this single traffic hub is relative high.
+- The NUMA architecture was designed to surpass the scalability limits of the SMP architecture. Instead of having a single memory controller per computer, the system is split into multiple nodes.
+  - Each node has processors and its own memory.
+  - The processors have very fast access to the local memory in the node.
+  - All the nodes in the system are connected using a fast interconnect.
+- NUMA policy is concerned with putting memory allocations on specific nodes to let programs access them as quickly as possible.
+  *The primary way to do this is to allocate memory for a thread on its local node and keep the thread running there (node affinity)*
+  1) plan your thread execution, for which thread executing on which CPU 
+  2) allocate memory ahead based on the node position of that CPU
+- In addition to =numactl= library, =numastat= collect statistics about the memory allocation and =numademo= to show the effect of different policies on the system.
+
+*** Policies
+- Policies can be set process or per memory region.
+  - Policies set per memory region, also called VMA policies3, allow a process to set a policy for a block of memory in its address space. Memory region policies have a higher priority than the process policy.
+
+*** libnuma
+- =nodemask_t= is a fixed size bit set of node numbers.
+  #+BEGIN_SRC c
+    nodemask_set(&mask, maxnode); /* set node highest */
+    if (nodemask_isset(&mask, 1)) { /* is node 1 set? */
+      ...
+     }
+    nodemask_clr(&mask, maxnode); /* clear highest node again */
+
+  #+END_SRC
+  
+- allocation memory on node/set of nodes
+  1) =void *numa_alloc_onnode(size_t size, int node);=
+  2) =void *numa_alloc_interleaved_subset(size_t size, struct bitmask *nodemask);=
+
+- libnuma process policy
+  When existing code in a program cannot be modified to use the numa_alloc functions directly, it is sometimes useful to change the process policy in a program. This way, specific subfunctions can be run with a nondefault policy without actually modifying their code.
+  - Each thread has a default memory policy inherited from its parent. Unless changed with numactl, this policy is normally used to allocate memory preferably on the current node.
+  - =numa_set_interleave_mask= enables interleaving for the current thread. All future memory allocations allocate memory round robin interleaved over the nodemask specified.
+  - Process policy can also be used to set a policy for a child process before starting it.
+  - =numa_bind()= binds the current task and its children to the nodes specified in nodemask. They will only run on the CPUs of the specified nodes and only be able to allocate memory from them. This function is equivalent to calling =numa_run_on_node_mask(nodemask)= followed by =numa_set_membind(nodemask)=.
+    - =numa_run_on_node_mask()= runs the current task and its children only on nodes specified in =nodemask=. They will not migrate to CPUs of other nodes until the node affinity is reset with a new call to =numa_run_on_node_mask()=. Passing =numa_all_nodes= permits the kernel to schedule on all nodes again.
+    - =void numa_set_membind(struct bitmask *nodemask);= sets the memory allocation mask. The task will only allocate memory from the nodes set in nodemask.
+
+- Changing the policy of existing memory areas
+  When working with shared memory, it is often not possible to use the numa_alloc family of functions to allocate memory. The memory must be gotten from shmat() or mmap instead. To allow libnuma programs to set policy on such areas, there are additional functions for setting memory policy for already existing memory areas.
+  These function only affect future allocation in the specified area.
+
+- Except allocating memory on specific nodes, another part of NUMA policy is to run the thread on the CPUs of the correct node.
+  A simple way to use libnuma is the =numa_bind= function. It binds both the CPU and the memory of the process allocated in the future to a specific nodemask.
+  - Example of binding process CPU and memory allocation to node 1 using numa_bind:
+    #+BEGIN_SRC c
+      nodemask_t mask;
+      nodemask_zero(&mask);
+      nodemask_set(&mask 1);
+      numa_bind(&mask);
+    #+END_SRC
+
+  - =numa_get_run_node_mask()= returns a mask of CPUs on which the current task is allowed to run. This can be used to save and restore the scheduler affinity state before running a child process or starting a thread.
+
+- Most functions in this library are only concerned about numa nodes and their memory. But some function which deals with the CPUs associated with numa nodes.
+  - =int numa_node_to_cpus(int node, struct bitmask *mask);= convert a node number to a bitmask of CPUs. 
+
+- NUMA allocation statistics with numastat
+  - The statistic info is for each node. It aggregates the results from all cores on a node to form a single result for the entire node.
+  - It reports the following statistics:
+    1) numa_hit
+    2) numa_miss
+    3) numa_foreign
+    4) local_node
+    5) interleave_hit
+    6) other_node
+       
+    The difference between numa_miss and numa_hit and local_node and foreign_node is that the first two count hit or miss for the NUMA policy. The latter count if the allocation was on the same node as the requesting thread.
 * Use pthread to do the experiment
 To eliminate other errors which could be caused by using OpenMP, I use pthread to do the test. Also, using OpenMP is not every convonient to test different situations since you need to set OpenMP environment and remember to use the correct in different program.
 - also use tick() to measure time
@@ -172,150 +316,6 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 ** Test parallel version of code for memory access time
 **** code with parallel 
 **** time execution record
-* Performance bost using libnuma
-** How to use libnuma to boost?
-- check numa architectures on Linux
-  #+BEGIN_SRC sh
-    wzhao@r815:~/numa-knn$ numactl --hardware
-    available: 8 nodes (0-7)
-    node 0 cpus: 0 4 8 12 16 20 24 28        === 
-    node 0 size: 65526 MB
-    node 0 free: 62754 MB
-    node 1 cpus: 32 36 40 44 48 52 56 60     === 
-    node 1 size: 65536 MB
-    node 1 free: 60707 MB
-    node 2 cpus: 2 6 10 14 18 22 26 30      ===
-    node 2 size: 65536 MB
-    node 2 free: 63404 MB
-    node 3 cpus: 34 38 42 46 50 54 58 62   ===
-    node 3 size: 65536 MB
-    node 3 free: 63005 MB
-    node 4 cpus: 3 7 11 15 19 23 27 31
-    node 4 size: 65536 MB
-    node 4 free: 62909 MB
-    node 5 cpus: 35 39 43 47 51 55 59 63
-    node 5 size: 65536 MB
-    node 5 free: 63202 MB
-    node 6 cpus: 1 5 9 13 17 21 25 29
-    node 6 size: 65536 MB
-    node 6 free: 11 MB
-    node 7 cpus: 33 37 41 45 49 53 57 61
-    node 7 size: 65520 MB
-    node 7 free: 51391 MB
-    node distances:
-    node   0   1   2   3   4   5   6   7 
-    0:  10  16  16  22  16  22  16  22 
-    1:  16  10  22  16  16  22  22  16 
-    2:  16  22  10  16  16  16  16  16 
-    3:  22  16  16  10  16  16  22  22 
-    4:  16  16  16  16  10  16  16  22 
-    5:  22  22  16  16  16  10  22  16 
-    6:  16  22  16  22  16  22  10  16 
-    7:  22  16  16  22  22  16  16  10 
-  #+END_SRC
-  - There are seven processors, each has 7 cores
-    
-*** How to retrieve the core id in which a thread is running? 
-  Use =sched_getcpu()=
-  #+BEGIN_SRC c
-    #include <stdio.h>
-    #include <sched.h>
-    #include <omp.h>
-
-    int main() {
-    #pragma omp parallel
-      {
-        int thread_num = omp_get_thread_num();
-        int cpu_num = sched_getcpu();
-        printf("Thread %3d is running on CPU %3d\n", thread_num, cpu_num);
-      }
-
-      return 0;
-    }
-  #+END_SRC
-  
-  Use command line to check the affinity and execution result:
-  #+BEGIN_SRC sh
-    wzhao@r815:~/numa-knn$ GOMP_CPU_AFFINITY='0,1,2,3' ./bin/openmp_with_numa 10 10 4
-    The number of highest possible node in the system is: 63
-    Thread   0 is running on CPU   0
-    Thread   1 is running on CPU   1
-    Thread   3 is running on CPU   3
-    Thread   2 is running on CPU   2
-    From initialization to finished, use: 12ms
-  #+END_SRC
-** NUMA API
-*** Introduction
-- On an SMP(symmetric multiprocessing) system, all CPUs have equal access to the same shared memory controller that connects to all the memory chips (DIMMs). Communication between the CPUs also goes through this shared resource, which can become congested.
-- The number of memory chips that can be managed by the single controller is also limited, which limit how much memory can be suppported by the system. In addition, the latency to access memory through this single traffic hub is relative high.
-- The NUMA architecture was designed to surpass the scalability limits of the SMP architecture. Instead of having a single memory controller per computer, the system is split into multiple nodes.
-  - Each node has processors and its own memory.
-  - The processors have very fast access to the local memory in the node.
-  - All the nodes in the system are connected using a fast interconnect.
-- NUMA policy is concerned with putting memory allocations on specific nodes to let programs access them as quickly as possible.
-  *The primary way to do this is to allocate memory for a thread on its local node and keep the thread running there (node affinity)*
-  1) plan your thread execution, for which thread executing on which CPU 
-  2) allocate memory ahead based on the node position of that CPU
-- In addition to =numactl= library, =numastat= collect statistics about the memory allocation and =numademo= to show the effect of different policies on the system.
-
-*** Policies
-- Policies can be set process or per memory region.
-  - Policies set per memory region, also called VMA policies3, allow a process to set a policy for a block of memory in its address space. Memory region policies have a higher priority than the process policy.
-
-*** libnuma
-- =nodemask_t= is a fixed size bit set of node numbers.
-  #+BEGIN_SRC c
-    nodemask_set(&mask, maxnode); /* set node highest */
-    if (nodemask_isset(&mask, 1)) { /* is node 1 set? */
-      ...
-     }
-    nodemask_clr(&mask, maxnode); /* clear highest node again */
-
-  #+END_SRC
-  
-- allocation memory on node/set of nodes
-  1) =void *numa_alloc_onnode(size_t size, int node);=
-  2) =void *numa_alloc_interleaved_subset(size_t size, struct bitmask *nodemask);=
-
-- libnuma process policy
-  When existing code in a program cannot be modified to use the numa_alloc functions directly, it is sometimes useful to change the process policy in a program. This way, specific subfunctions can be run with a nondefault policy without actually modifying their code.
-  - Each thread has a default memory policy inherited from its parent. Unless changed with numactl, this policy is normally used to allocate memory preferably on the current node.
-  - =numa_set_interleave_mask= enables interleaving for the current thread. All future memory allocations allocate memory round robin interleaved over the nodemask specified.
-  - Process policy can also be used to set a policy for a child process before starting it.
-  - =numa_bind()= binds the current task and its children to the nodes specified in nodemask. They will only run on the CPUs of the specified nodes and only be able to allocate memory from them. This function is equivalent to calling =numa_run_on_node_mask(nodemask)= followed by =numa_set_membind(nodemask)=.
-    - =numa_run_on_node_mask()= runs the current task and its children only on nodes specified in =nodemask=. They will not migrate to CPUs of other nodes until the node affinity is reset with a new call to =numa_run_on_node_mask()=. Passing =numa_all_nodes= permits the kernel to schedule on all nodes again.
-    - =void numa_set_membind(struct bitmask *nodemask);= sets the memory allocation mask. The task will only allocate memory from the nodes set in nodemask.
-
-- Changing the policy of existing memory areas
-  When working with shared memory, it is often not possible to use the numa_alloc family of functions to allocate memory. The memory must be gotten from shmat() or mmap instead. To allow libnuma programs to set policy on such areas, there are additional functions for setting memory policy for already existing memory areas.
-  These function only affect future allocation in the specified area.
-
-- Except allocating memory on specific nodes, another part of NUMA policy is to run the thread on the CPUs of the correct node.
-  A simple way to use libnuma is the =numa_bind= function. It binds both the CPU and the memory of the process allocated in the future to a specific nodemask.
-  - Example of binding process CPU and memory allocation to node 1 using numa_bind:
-    #+BEGIN_SRC c
-      nodemask_t mask;
-      nodemask_zero(&mask);
-      nodemask_set(&mask 1);
-      numa_bind(&mask);
-    #+END_SRC
-
-  - =numa_get_run_node_mask()= returns a mask of CPUs on which the current task is allowed to run. This can be used to save and restore the scheduler affinity state before running a child process or starting a thread.
-
-- Most functions in this library are only concerned about numa nodes and their memory. But some function which deals with the CPUs associated with numa nodes.
-  - =int numa_node_to_cpus(int node, struct bitmask *mask);= convert a node number to a bitmask of CPUs. 
-
-- NUMA allocation statistics with numastat
-  - The statistic info is for each node. It aggregates the results from all cores on a node to form a single result for the entire node.
-  - It reports the following statistics:
-    1) numa_hit
-    2) numa_miss
-    3) numa_foreign
-    4) local_node
-    5) interleave_hit
-    6) other_node
-       
-    The difference between numa_miss and numa_hit and local_node and foreign_node is that the first two count hit or miss for the NUMA policy. The latter count if the allocation was on the same node as the requesting thread.
 * Performance boost using OpenMP
 ** code for Matrix times Vector
 #+BEGIN_SRC c++
