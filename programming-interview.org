@@ -1,0 +1,5 @@
+* Operating system concepts
+** common questions
+1) Explain the following terms: virtual memory, page fault, thrashing.
+2) What is a Branch Target buffer? Explain how it can be used in reducing bubble cycles in case of branch misprediction.
+3) Describe direct memory access (DMA). Can a user level buffer / pointer be used by kernel or drivers?
