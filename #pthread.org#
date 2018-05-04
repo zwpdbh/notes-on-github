@@ -17,4 +17,4 @@
   2) can be canceled by another thread in the same process
   3) call =void pthread_exit(void *rval_ptr);=
      - =rval_ptr= is a typeless pointer. It is available to another threads in the process by calling the =int pthread_join(pthread_t thread, void **rval_ptr);= function.
-- The calling thread will block until the sepcific thread is terminated using those 3 ways
+- The calling thread will block until the sepcific thread is terminated using those 3 ways.

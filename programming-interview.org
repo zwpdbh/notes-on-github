@@ -3,3 +3,59 @@
 1) Explain the following terms: virtual memory, page fault, thrashing.
 2) What is a Branch Target buffer? Explain how it can be used in reducing bubble cycles in case of branch misprediction.
 3) Describe direct memory access (DMA). Can a user level buffer / pointer be used by kernel or drivers?
+
+* Coding Interview
+** Low level problem
+1) Write a function called my2DAlloc which allocates a two dimensional array Minimize the number of calls to malloc and make sure that the memory is accessible by the notation =arr[i][j]=
+   #+BEGIN_SRC C
+     int** my2dmalloc(int rows, int cols) {
+       int header = rows * sizeof(int*);
+       int data = rows * cols * sizeof(int);
+       int** rowptr = (int**)malloc(header + data);
+       
+       int* buf = (int*)(rowptr + rows);
+       int k;
+       for(k=0;k<rows;++k){
+         rowptr[k] = buf + k*cols; }
+       return rowptr;
+     }
+
+     int main(int argc, char* argv[]) {
+       int row, col;
+       row = 50;
+       col = 100;
+       int** mx = my2dmalloc(row, col);
+       mx[0][1] = 2;
+       printf("mx[0][1] = %d\n", mx[0][1]);
+       mx[0][1] = 1;
+       printf("mx[0][1] = %d\n", mx[0][1]);
+
+       free(mx);
+       return 0;
+     }
+   #+END_SRC
+
+   #+RESULTS:
+   | mx[0][1] | = | 2 |
+   | mx[0][1] | = | 1 |
+
+   - 
+
+* Appendix
+** C, C++, D Source Code Blocks in Org Mode
+use babel to evaluate C, C++, and D code 
+see [[https://orgmode.org/worg/org-contrib/babel/languages/ob-doc-C.html][C code block in Org mode]].
+* Interview log
+** Applied company
+| company name              | current status                                               |
+|---------------------------+--------------------------------------------------------------|
+| FNZ                       | leave contact, wait them to contact me                       |
+| DXZ                       | have send resume and go through the online registration      |
+| Dimension data            | sent resume via email                                        |
+| vista                     | applied via their website                                    |
+| Intergen                  | Online interview,Due: Friday, May 25th 2018 at 11:00 pm NZST |
+|---------------------------+--------------------------------------------------------------|
+| Allied Telesis Labs (ATL) | sent resume from seek me                                     |
+
+
+

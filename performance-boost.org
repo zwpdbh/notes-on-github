@@ -315,7 +315,8 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
 ** Test parallel version of code for memory access time
 *** code with parallel 
-#+BEGIN_SRC c
+Assume the number of threads is multiple times of NUMA nodes.
+#+BEGIN_SRC C
   #include <iostream>
   #include <chrono>
   #include <vector>
@@ -337,7 +338,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
   using namespace std;
 
   void *emalloc(size_t s);
-  void initMap(map<int, int> &topology);
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
   void* thr_alloc_fn(void* arg);
   void* thr_access_fn(void* arg);
 
@@ -345,6 +346,9 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
   long s_each = 0;
   long s;
   map<int, int> topology;
+  map<int, vector<int> > topology_inverse;
+  // by default, access with numa awareness
+  int without_numa = 0;
 
   typedef struct Access_info_per_thread pInfo;
   struct Access_info_per_thread {
@@ -355,8 +359,8 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
   /**allocate and access on the same node*/
   int main(int argc, char* argv[]) {
-    if (argc != 3) {
-      printf("usage: ./xxx <row> <col>\n exit...\n");
+    if (argc != 4) {
+      printf("usage: ./xxx <row> <col> <without_numa>\n exit...\n");
       exit(-1);
     }
 
@@ -367,16 +371,11 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     long m, n;
     m = atol(argv[1]);
     n = atol(argv[2]);
-    
+    without_numa = atoi(argv[3]);
+
     s = m * n;
-    if (s % NUM_THREADS) {
-      printf("s % NUM_THREADS = %d, it should be = 0, exit...\n", s % NUM_THREADS);
-    } else {
-      printf("matrix size = %ld * %ld = %ld\n", m, n, s);
-    }
 
-
-    initMap(topology);
+    initMap(topology, topology_inverse);
       
     s_each = s / NUM_NODES;
     printf("the size of memory needed to allocate on each node is %lld\n", s_each);
@@ -414,8 +413,13 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     
     free(tid);
     free(thread);
+    
+    if (without_numa) {
+      printf("\nWITHOUT numa awareness:\n");
+    } else {
+      printf("\nWITH numa awareness:\n");
+    }
 
-    printf("\naccess in parallel:\n");
 
     
     pInfo* threadInfo;
@@ -444,13 +448,19 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
     auto done = std::chrono::high_resolution_clock::now();
     std::cout << "From initialization to finished, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << "ns" << endl;
-
-    for(int i = 0; i < NUM_NODES; i++) {
-      for (int j = 0; j < s_each; j++) {
-        printf("%.1f ", mx[i][j]);
-      }
-      printf("\n");
-    }
+    
+    // check the access result
+    /**
+       for(int i = 0; i < NUM_NODES; i++) {
+       if (i == NUM_NODES -1) {
+       s_each = s_each + s % NUM_NODES;
+       }
+       for (int j = 0; j < s_each; j++) {
+       printf("%.1f ", mx[i][j]);
+       }
+       printf("\n");
+       }
+    ,*/
     
     for (int i = 0; i < NUM_NODES; i++) {
       numa_free(mx[i], s_each * sizeof(float));
@@ -472,7 +482,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     tid = pthread_self();
     i = *(int *)arg;
 
-    printf("pid = %lu, tid = %lu, for i = %d, is running on cpu: %d\n", (unsigned long)pid, (unsigned long)tid, i, sched_getcpu());
+    //  printf("pid = %lu, tid = %lu, for i = %d, is running on cpu: %d\n", (unsigned long)pid, (unsigned long)tid, i, sched_getcpu());
     mx[i] = (float*)numa_alloc_onnode(s_each * sizeof(float), i);
     
     for (int k = 0; k < s_each; k++) {
@@ -485,74 +495,72 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
   void* thr_access_fn(void* arg) {
     pid_t pid;
     pInfo info;  
-    int which_node;
-    int which_cpu;
+    int node_index;
+    int sched_cpu;
+    int current_on_node;
+    pthread_t tid;
 
     info = *(struct Access_info_per_thread*)arg;
     pid = getpid();
-    which_cpu = sched_getcpu();
-
+    sched_cpu = sched_getcpu();
+    current_on_node = topology[sched_cpu];
     int id = info.thread_id;
 
-    printf("pid = %lu, tid = %ld, is running on cpu: %d, on node: %d ", (unsigned long)pid, (unsigned long)info.thread_id, which_cpu, topology[which_cpu]);
-    
     // check if the corresponding thread is running on the right set of CPUs, so it has local access to corresponding node.
-    which_node = id / (NUM_THREADS / NUM_NODES);
+    node_index = id / (NUM_THREADS / NUM_NODES);
     // migrate thread to certain cpu set, so that it can access data locally
-
+    if (node_index != current_on_node) {
+      //     printf("pid = %lu, tid = %ld, on cpu: %d, node_index: %d, current_on_node: %d\n", (unsigned long)pid, (unsigned long)info.thread_id, sched_cpu, node_index, current_on_node);
+      // create cpu set mask
+      if (!without_numa) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        vector<int> cpus = topology_inverse[node_index];
+        for (int i = 0; i < cpus.size(); i++) {
+          CPU_SET(cpus[i], &cpuset);
+        }
+        tid = pthread_self();
+        pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+        sched_cpu = sched_getcpu();
+        current_on_node = topology[sched_cpu];
+        //    printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
+      }
+    } else {
+      //    printf("pid = %lu, tid = %ld, on cpu: %d, node_index: %d\n", (unsigned long)pid, (unsigned long)info.thread_id, sched_cpu, node_index);
+    }
     // p tells the current thread's postion in the corresponding node section
-    int p = id - which_node * (NUM_THREADS / NUM_NODES);
-    printf("thread %d, p = %d ", id, p);
+    int p = id - node_index * (NUM_THREADS / NUM_NODES);
+
     int from = p * info.job_size;
     int to = from + info.job_size;
-    printf("from = %d, to = %d\n", from, to);
+    // if it is the last thread in a NUMA node section
+    if ((p + 1) % (NUM_THREADS / NUM_NODES) == 0) {
+      to = s_each % (NUM_THREADS / NUM_NODES) + to;
+    }
+
+    // if it is the last thread
+    if (id == NUM_THREADS - 1) {
+      to = to + s % NUM_NODES;
+    }
+
     for (int i = from; i < to; i++) {
-      mx[which_node][i] = 3.0;
+      mx[node_index][i] = 3.0;
     }
 
     return 0;
   }
 
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse) {
 
-  void initMap(map<int, int> &topology) {
-    // node 0 cpus: 0 4 8 12 16 20 24 28
-    for (int i = 0; i <=28; i+=4) {
-      topology.insert(make_pair(i, 0));
-    }
-
-    // node 1 cpus: 32 36 40 44 48 52 56 60
-    for (int i = 32; i <=60; i+=4) {
-      topology.insert(make_pair(i, 1));
-    }
-
-    // node 2 cpus: 2 6 10 14 18 22 26 30
-    for (int i = 2; i <= 30; i+=4) {
-      topology.insert(make_pair(i, 2));
-    }
-
-    // node 3 cpus: 34 38 42 46 50 54 58 62
-    for (int i = 34; i <= 62; i+=4) {
-      topology.insert(make_pair(i, 3));
-    }
-    
-    // node 4 cpus: 3 7 11 15 19 23 27 31
-    for (int i = 3; i <= 31; i+=4) {
-      topology.insert(make_pair(i, 4));
-    }
-
-    // node 5 cpus: 35 39 43 47 51 55 59 63
-    for (int i = 35; i <= 63; i+=4) {
-      topology.insert(make_pair(i, 5));
-    }
-
-    // node 6 cpus: 1 5 9 13 17 21 25 29
-    for (int i = 1; i <= 29; i+=4) {
-      topology.insert(make_pair(i, 6));
-    }
-
-    // node 7 cpus: 33 37 41 45 49 53 57 61
-    for (int i = 33; i <= 61; i+=4) {
-      topology.insert(make_pair(i, 7));
+    vector<int> index_set = {0, 32, 2, 34, 3, 35, 1, 33};
+    for (int node = 0 ; node < index_set.size(); node++) {
+      vector<int> cpus_on_node;
+      for (int cpu = index_set[node]; cpu < index_set[node] + 32; cpu+=4) {
+        //      printf("make pair: %d <=> %d\n", node, cpu);
+        topology.insert(make_pair(cpu, node));
+        cpus_on_node.push_back(cpu);
+      }
+      topology_inverse.insert(make_pair(node, cpus_on_node));
     }
   }
 
@@ -565,9 +573,18 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     }
     return result;
   }
-
 #+END_SRC
-*** time execution record
+*** Execution record
+=./bin/parallel_memory_access 100000 100000 0= for with numa awareness
+=./bin/parallel_memory_access 100000 100000 1= for without numa awareness
+
+|   id |        with |     without |
+|    1 |  1123583304 |  1196886063 |
+|    2 |  1027846365 |  1213154223 |
+|    3 |   961966382 |  1197822674 |
+|    4 |  1001347748 |  1190312127 |
+| mean | 1028685900. | 1199543800. |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
 * Performance boost using OpenMP
 ** code for Matrix times Vector
 #+BEGIN_SRC c++
