@@ -1,0 +1,78 @@
+* Docker
+** Docker container as a remote server
+*** Create Dockerfile 
+#+BEGIN_SRC sh
+  FROM ubuntu:12.04.5
+
+  # Install.
+  RUN \
+      sed -i 's/# \(.*multiverse$\)/\1/g' /etc/apt/sources.list && \
+      apt-get update && \
+      apt-get -y upgrade && \
+      apt-get install -y openssh-server cmake gcc && \
+      apt-get install -y vim python tcpdump telnet && \
+      apt-get install -y byacc flex && \
+      apt-get install -y gdbserver less bison valgrind && \
+      apt-get install -y curl git htop man unzip vim wget && \
+      apt-get install -y build-essential && \
+      # apt-get install -y software-properties-common && \
+      mkdir /var/run/sshd && \
+      echo 'root:root' | chpasswd && \
+      sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+      mkdir ~/tmp
+
+  # SSH login fix. Otherwise user is kicked off after login
+  RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+  ENV NOTVISIBLE "in users profile"
+  RUN echo "export VISIBLE=now" >> /etc/profile
+
+  EXPOSE 22 9999 7777
+  CMD ["/usr/sbin/sshd", "-D"]
+
+#+END_SRC
+- Port 22 will be used to SSH into the container
+- Port 9999 can be used to connect to the program from outside
+- Port 7777 is used to run =gdbserver= program that allows to debug the program remotely
+
+*** Start Container
+- =docker run -d -p 3022:22 -p 7777:7777 -p 9999:9999 --security-opt seccomp:unconfined -v /Users/zw/Downloads/:/root/dir_on_mac -v /Users/zw/code:/root/code --name clion-docker-dev zwpdbh/numa:latest=
+- try to ssh into the container
+  =ssh -p 3022 root@localhost=
+  - password is 'root'
+  - could copy your ssh public key from your machine
+    =cat ~/.ssh/id_rsa.pub | ssh -p 3022 root@localhost "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"\=
+
+*** Save the changes of the container 
+- =docker commit clion-docker-dev zwpdbh/numa:latest=
+  =clion-docker-dev= is the name of the container
+- =docker push zwpdbh/numa:latest=
+  =latest= is the tag
+** Docker Useful commands
+*** Stop all containers
+=docker stop $(docker ps | awk '{print $NF}' | grep -v 'NAMES')=
+*** Delete all containers
+=docker rm -v $(docker ps -aq)=
+*** Delete all docker images
+=docker rmi $(docker images -q)=
+* Assembly Dev in Emacs
+** Useful links about Assembly in Emacs
+- [[https://vishnudevtj.github.io/notes/assembly-in-emacs#org64830af][Assembly in Emacs]]
+- [[https://emacs.stackexchange.com/questions/5348/better-indentation-and-navigation-in-assembly-source-code?answertab=active#tab-top][Better indentation and navigation in assembly source code]]
+* Common Lisp Dev
+[[https://spin.atomicobject.com/2016/05/27/write-emacs-package/][Take Your Emacs to the Next Level by Writing Custom Packages]]
+
+* R 
+** troubleshooting
+- [[https://stackoverflow.com/questions/9689104/installing-r-on-mac-warning-messages-setting-lc-ctype-failed-using-c][Installing R on Mac - Warning messages: Setting LC_CTYPE failed, using “C”]]
+  - Open the R(software) and copy and paste:
+    =system("defaults write org.R-project.R force.LANG en_US.UTF-8")=
+** Useful links
+- [[https://stats.blogoverflow.com/2011/08/using-emacs-to-work-with-r/][Using Emacs to work with R]]
+- [[http://ess.r-project.org/index.php?Section=home][ESS]]
+- [[http://www.damtp.cam.ac.uk/user/sje30/ess11/][Material for the ESS tutorial]]
+- [[https://www2.stat.duke.edu/courses/Spring09/sta244/computing/R-ESS.html][Running R/S-Plus in Emacs]]
+- [[http://blog.revolutionanalytics.com/2014/03/emacs-ess-and-r-for-zombies.html][Emacs, ESS and R for Zombies]]
+* Other people's emacs configuration
+- [[https://github.com/kaushalmodi/.emacs.d/blob/42831e8997f7a3c90bf4bd37ae9f03c48277781d/setup-files/setup-org.el#L413-L584][contains different component]]
+- [[https://github.com/purcell/emacs.d/tree/master/lisp][many useful lisp configuration for emacs]]

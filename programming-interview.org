@@ -3,7 +3,131 @@
 1) Explain the following terms: virtual memory, page fault, thrashing.
 2) What is a Branch Target buffer? Explain how it can be used in reducing bubble cycles in case of branch misprediction.
 3) Describe direct memory access (DMA). Can a user level buffer / pointer be used by kernel or drivers?
+   - Related to Accessing Disks in chapter 6, see figure 6.12
+   - DMA is a process happend during the states of a CPU reads/writes data from/to a disk. This process, whereby a device performs a read or write bus transaction on its own, without any involvement of the CPU, is know as direct memory access (DMA).
+   - The 3 stage of CPU read a data from disk:
+     1) The CPU initialize a disk read by writing a command, logical block number, and the destination memory address to the memory mapped address associated with the disk.
+     2) The disk controller reads the sector and performs a DMA transfer into main memory.
+     3) When DMA transfer is complete, the disk controller notifies the CPU with an interrupt.
+   - A user level buffer can be used by kernel or drivers.
 
+** The Memory Hierarchy
+*** Storage Technologies
+*** Locality
+- Good programs tend to reference data items that are near other recently referenced data items, or that were recently referenced themselves. This tendency, known as the principle of locality.
+- temporal locality and spatial locality
+*** The memory hierarchy
+**** Caching in the memory hierarchy
+- cache miss and hit
+- relace or evict the blck in the process of overwriting an existing block. replacement policy
+- Kinds of Cache Misses
+  - cold misses
+  - conflict miss
+  - capacity misses
+- 3 steps that a cache goes through of determining whether a request is a hit or miss and then extracting the requested word:
+  1) set selection
+  2) line matching
+  3) word extraction
+*** Cache memories
+- Generic cache memory organization
+  - cache sets bits
+  - cache line bits
+  - tag bits
+  - block offset bits
+
+** Exceptional Control Flow
+Exceptional control flow occurs at all levels of a computer system:
+1) hardware level, hardware trigger *exception handlers*
+2) operating system level, the kernel transfers control from one user process to another via *context switches*.
+3) application level, a process can send a signal to another process that abruptly transfers control to a *signal handler* in the recipient.
+*** Exceptions
+- Exceptions are a form of exceptional control flow that are implemented partly by the hardware and partly by the operating system.
+- An =exception= is an abrupt change in the control flow in response to some change in the =processor's state=.
+  - The state is encoded in various bits and signals inside the processor.
+- When the processor detects that the event has occurred, it makes an indirect procedure call (the exception), through a jump table called an *exception table*, to an operating system subroutine (the *exception handler*) that is specifically designed to process this particular kind of event.
+**** Exception handling
+- exception number, some of these numbers are defined by processor, some are defined by operation system kernel.
+  - The exception number is an index to the exception table, whose starting address is contained in a special CPU register called the exception table base register.
+- exception table, so that entry =k= contains the address of the handler for exception =k=.
+- The processor triggers the exception by making an indirect procedure call, through entry =k= of the exception table, to the corresponding handler.
+- Exception handler runs in kernel mode.
+**** Classes of exceptions
+- 4 classes:
+  - interrupts
+    Exception handlers for hardware interrupts are often called =interrupt handlers=.
+  - traps
+    - traps are intentional exceptions
+    - The most important use of traps is to provide a procedure-like interface between user programs and the kernel known as a *system call*.
+    - Executing the =syscall= instruction causes a trap to an exception handler that decodes the argument and calls the appropriate kernel routine.
+  - faults
+    - Faults result from error conditions that a handler might be able to correct
+    - A classic example of a fault is the page fault exception, which occurs when an instruction references a virtual address whose corresponding physical page is not resident in memory and must therefore be retrieved from disk. The page fault handler loads the appropriate page from disk and then returns control to the instruction that caused the fault. When the instruction executes again, the appropriate physical page is resident in memory and the instruction is able to run to completion without faulting.
+  - abort
+    Aborts result from unrecoverable fatal errors
+- system level function = system calls and their associated wrapper functions
+- =int= instruction in Linux system to invoke system call directly.
+  - All parameters to Linux system calls are passed through general purpose registers rather than the stack.
+  - register =%eax= contains the syscall number
+  - registers =%ebx=, =%ecx=, =%edx=, =%esi=, =%edi=, and =%ebp= contain up to six arbitrary arguments.
+  - =%esp= cannot be used because it is overwritten by the kernel when it enters kernel mode.
+*** Processes
+- A process is an instance of a program in execution.
+  - Every program runs in the *context* of some process. The context consists of the state that the program needs to run correctly.
+  - The state includes:
+    - program's code
+    - data stores in memory 
+    - its stack 
+    - the contents of its general purpose registers
+    - its program counter 
+    - environment variables
+    - the set of open file descriptors
+- The process provides two key abstractions to the application:
+  1) the illusion that the program has exclusive use of the processor 
+  2) the illusion that the program has exclusive use of the memory system
+
+- logical control flow
+- Concurrent flows
+  - concurrent flow
+  - multitasking
+  - time slicing
+  - Notice that the idea of concurrent flows is independent of the number of processor cores or computers that the flows are running on. If two flows overlap in time, then they are concurrent, even if they are running on the same processor.
+  - a proper subset of concurrent flows is parallel flows, more than one flows are running concurrently on different processor cores or computers.
+- Private address space
+  - address space
+  - Each process provides each program its own *private address space*, in the sense that a byte of memory associated with a particular address in the space cannot in general be read or written by another process.
+- User mode and Kernel mode
+  - mode bit
+  - The only way for the process to change from user mode to kernel mode is via an exception such as an interrupt, a fault, or a trapping system call.
+- Context Switches
+  - It is a higher level form of exceptional control flow.
+  - a *context* for each process
+  - scheduling, is handled by code in the kernel called the scheduler 
+  - After the kernel has scheduled a new process to run, it preempts the current process and transfers control to the new process using a mechanism called a context switch that:
+    1) saves the context of the current process
+    2) restores the saved context of some previously preempted process
+    3) passes control to this newly restored process
+  - Cache pollution and exceptional control flow
+*** System call error handling
+- use error-reporting function 
+- use error-handling wrappers
+*** Process control
+- =getpid= and =getppid=
+**** Creating and terminating processes
+- 3 states of a process from a programmer's perspective
+  1) running
+  2) stopped
+  3) terminated
+- =fork=
+  - In the parent, fork returns the PID of the child.
+  - In the child, fork returns a value of 0.
+**** Reaping child process
+- child process reaped by its parent
+- zombie
+- A process waits for its children to terminate or stop by calling the =waitpid= function
+p724
+*** Signals
+*** Nonlocal Jumps
+*** Tools for manipulating processes
 * Coding Interview
 ** Low level problem
 1) Write a function called my2DAlloc which allocates a two dimensional array Minimize the number of calls to malloc and make sure that the memory is accessible by the notation =arr[i][j]=
