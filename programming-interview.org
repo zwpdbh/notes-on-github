@@ -167,20 +167,76 @@ Exceptional control flow occurs at all levels of a computer system:
   =man 7 signal= gives the list
 - each signal type <==> some kind of system event
 **** Signal terminology
-- sending a signal
+- *sending a signal*
   The kernel sends (delivers) a signal to a destination process by updating some state in the context of the destination process. The signal is delivered for one of two reasons:
   1) The kernel has detected a system event (such as a divide-by-zero error or the termination of a child process).
   2) A process has invoked the =kill= function to explicitly request the kernel to send a signal to the destination process.
-- receiving a signal
+- *receiving a signal*
   A destination process receives a signal when it is forced by the kernel to react in some way to the delivery of the signal. The process can:
   1) ignore
   2) terminate
-  3) catch the signal by executing a user-level function called a *signal handler*.
+  3) *catch* the signal by executing a user-level function called a *signal handler*.
 - *pending signal*, a signal has been sent but not yet received.
   - At any point in time, there can be at most one pending signal of a particular type.
-  - A process can selectively /block/ the receipt of certain signals. When a signal is blocked, it can be delivered, but the resulting pending signal will not be received until the process unblocks the signal.
+  - A process can selectively *block* the receipt of certain signals. When a signal is blocked, it can be delivered, but the resulting pending signal will not be received until the process unblocks the signal.
+  - pending signals <==> pending bit vector
+  - blocked signals <==> blocked bit vector
+  - The kernel sets bit =k= in pending whenever a signal of type =k= is delivered and clears bit =k= in pending whenever a signal of type =k= is received.
+**** Sending Signals
+- All of the mechanism of sending signals to processes rely on the notion of a *process group*.
+  - Every process belongs to exactly one process group, which is identified by a positive integer process group ID.
+  - =pid_t getpgrp(void)= returns the process group ID of the current process.
+  - =int setpgid(pid_t pid, pid_t pgid)= change the process group of the process =pid= to =gpid=.
+- Sending Signals with the =/bin/kill= Program
+- Sending Signals with the =kill= Function 
+  =int kill(pid_t pid, int sig)=
+  - If =pid= is greater than 0, the =kill= function sends signal number =sig= to process =pid=.
+  - If =pid= is less than 0, then =kill= sends signal =sig= to every process in process group =abs(pid)=.
+- A process can send SIGALRM signals to itself by calling the alarm function.
+**** Receiving Signals
+- When the kernel is returning from an exception handler and is ready to pass control to process =p=
+  1) If the set of signals which are =(pending & ~blocked)= for process =p= is empty, then the kernel passes control to the next instruction in the logical control flow of =p=.
+  2) If that set is not empty, then the kernel will choose some signal =k= in the set and force =p= to receive signal =k=. The receipt of the signal triggers some action by the process. Once the process completes the action, then control passes back to the next instruction in the logical control flow of =p=.
+     Each signal type has a predefined default action:
+     - The process terminates.
+     - The process terminates and dumps core.
+     - The process stops until restarted by a SIGCONT signal.
+     - The process ignores the signal.
+- A process can modify the default action associated with a signal by using the signal function. The only exceptions are SIGSTOP and SIGKILL, whose default actions cannot be changed.
+  #+BEGIN_SRC C
+    #include <signal.h>
+    typedef void (*sighandler_t)(int);
+
+    sighandler_t signal(int signum, sighandler_t handler);
+  #+END_SRC
+  - if =handler= is =SIG_IGN=, then the signal of type =signum= are ignored.
+  - if =handler= is =SIG_DFL=, then the action for signals of type =signum= reverts to the default action.
+  - Otherwise, =handler= is the address of a user-defined function, called a *signal handler*, that will be called whenever the process receives a signal of type =signum=.
+- Signal handlers are yet another example of concurrency in a computer system. The execution of the signal handler interrupts the execution of the main C routine, akin to the way that a low-level exception handler interrupts the control flow of the current application program. Since the logical control flow of the signal handler overlaps the logical control flow of the main routine, the signal handler and the main routine run concurrently.
+**** Signal handling issues
+The crucial lesson is that signals cannot be used to count the occurrence of events in other processes.
+**** Portable signal handling
+- use wrapper function around =sigaction= function.
+**** Explicitly blocking and unblocking signals
+Blocking a signal means telling the operating system to hold it and deliver it later. Generally, a program does not block signals indefinitely—it might as well ignore them by setting their actions to SIG_IGN. But it is useful to block signals briefly, to prevent them from interrupting sensitive operations. For instance:
+1) You can use the =sigprocmask= to block signals while you modify global variables that are also modified by the handlers for these signals.
+2) You can set =sa_mask= in your =sigaction= call to block certain signals while a particular signal handler runs. This way, the signal handler can run without being interrupted itself by signals.
+**** Synchronizing Flows to Avoid Nasty Concurrency Bugs
+- see page 755, 
 *** Nonlocal Jumps
+C provides a form of user-level exceptional control flow, called a nonlocal jump, that transfers control directly from one function to another currently executing function without having to go through the normal call-and-return sequence. 
+- =setjmp=
+  - called once, returns multiple times
+- =longjmp=
+  - called once, but never returns
 *** Tools for manipulating processes
+- =strace=
+- =ps=
+- =top=
+- =pmap=
+= =cat /proc/xx=
+** Virtual Memory
+
 * Coding Interview
 ** Low level problem
 1) Write a function called my2DAlloc which allocates a two dimensional array Minimize the number of calls to malloc and make sure that the memory is accessible by the notation =arr[i][j]=
