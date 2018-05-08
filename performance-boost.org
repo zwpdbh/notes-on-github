@@ -315,240 +315,308 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
 ** Test parallel version of code for memory access time
 *** code with parallel 
-Assume the number of threads is multiple times of NUMA nodes.
 #+BEGIN_SRC C
+  #include <pthread.h>
   #include <iostream>
   #include <chrono>
-  #include <vector>
   #include <sched.h>
-  #include <stdio.h>
-  #include <numa.h>
-  #include <stdlib.h>
-  #include <string>
-  #include <map>
-  #include <pthread.h>
   #include <sys/types.h>
   #include <unistd.h>
-  #include <cmath>
-  #include <thread>
+  #include <sched.h>
+  #include <map>
+  #include <vector>
+  #include <numa.h>
+  #include <chrono>
 
-  #define NUM_NODES 8
-  #define NUM_THREADS 64
 
   using namespace std;
 
-  void *emalloc(size_t s);
-  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
-  void* thr_alloc_fn(void* arg);
-  void* thr_access_fn(void* arg);
+  long ROWS;
+  long COLS;
+  int NUM_THREADS = 64;
+  int NUM_NODES = 8;
 
-  float** mx = NULL;
-  long s_each = 0;
-  long s;
+  float** mx = nullptr;
+  float* v = nullptr;
+  float* w = nullptr;
+  long s = 0;
+  int with_numa = 1;
   map<int, int> topology;
   map<int, vector<int> > topology_inverse;
-  // by default, access with numa awareness
-  int without_numa = 0;
 
-  typedef struct Access_info_per_thread pInfo;
-  struct Access_info_per_thread {
+  typedef struct pthreadInfo {
     int thread_id;
-    int job_size;
-  };
+    long from;
+    long job_size;
+    int row_in_mx;
+    int p;
+    pthread_t thread;
+  } pInfo;
 
+  void *emalloc(size_t s);
+  void *remalloc(void *p, size_t s);
+  void* thr_alloc_fn(void* arg);
+  void* thr_access_fn(void* arg);
+  void* thr_multiply_fn(void* arg);
+  void check_mx();
+  void check_w();
+  void construct_barrier(pInfo* pthreads, int n_threads);
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
 
-  /**allocate and access on the same node*/
   int main(int argc, char* argv[]) {
     if (argc != 4) {
-      printf("usage: ./xxx <row> <col> <without_numa>\n exit...\n");
+      printf("usage: ./bin/matrix_multiplication <rows> <cols> <with_numa>, exit...\n");
       exit(-1);
     }
-
-    if(numa_available() == -1) {
-      printf("no libnuma support\n");
+    ROWS = atol(argv[1]);
+    COLS = atol(argv[2]);
+    with_numa = atoi(argv[3]);
+    if (with_numa) {
+      printf("WITH numa\n");
+    } else {
+      printf("WITHOUT numa configuration\n");
     }
-    
-    long m, n;
-    m = atol(argv[1]);
-    n = atol(argv[2]);
-    without_numa = atoi(argv[3]);
-
-    s = m * n;
-
+    s = ROWS * COLS;
+    printf("s = %ld\n", s);
     initMap(topology, topology_inverse);
-      
-    s_each = s / NUM_NODES;
-    printf("the size of memory needed to allocate on each node is %lld\n", s_each);
-
 
     mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
-    
-    // make sure to use strick mode
-    numa_set_strict(1);
-    
-    int* tid;
-    pthread_t* thread;
+    pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_NODES);
+    pthread_t* thread; // array of pthread_t, for catching each created thread
     int err = 0;
-    void* status;
-    
-    tid = (int*)emalloc(sizeof(*tid) * NUM_NODES);
-    thread = (pthread_t*)emalloc(sizeof(*thread) * NUM_NODES);
 
+
+    /**Allocate m by n matrix with the shape NUM_NODES * some right size*/
     for (int i = 0; i < NUM_NODES; i++) {
-      tid[i] = i;
-      err = pthread_create(&thread[i], NULL, thr_alloc_fn, (void *)&tid[i]);
+      pthreads[i].thread_id = i;
+      pthreads[i].row_in_mx = i;
+      pthreads[i].job_size = (s/NUM_NODES);
+      if (pthreads[i].thread_id == NUM_NODES - 1) {
+        pthreads[i].job_size += (s % NUM_NODES);
+      }
+      err = pthread_create(&pthreads[i].thread, NULL, thr_alloc_fn, (void *)&pthreads[i]);
       if (err != 0) {
-        printf("error during thread creation, exit...\n");
+        printf("error during thread creation, exit..\n");
         exit(-1);
       }
     }
 
-
-    for (int i = 0; i < NUM_NODES; i++) {
-      err = pthread_join(thread[i], &status);
-      if (err) {
-        printf("error, return code from pthread_join() is %d\n", status);
-      }
-    }
-    
-    free(tid);
-    free(thread);
-    
-    if (without_numa) {
-      printf("\nWITHOUT numa awareness:\n");
-    } else {
-      printf("\nWITH numa awareness:\n");
-    }
-
-
-    
-    pInfo* threadInfo;
-    thread = (pthread_t*)emalloc(sizeof(*thread) * NUM_THREADS);
-    threadInfo = (pInfo*)emalloc(sizeof(*threadInfo) * NUM_THREADS);
+    /**manually created barrier*/
+    construct_barrier(pthreads, NUM_NODES);
+    //  check_mx();
 
     auto started = std::chrono::high_resolution_clock::now();
-    // generate multiple threads for access data in parallel
-    
+
+    pthreads =(pInfo*)remalloc(pthreads, sizeof(*pthreads) * NUM_THREADS);
     for (int i = 0; i < NUM_THREADS; i++) {
-      threadInfo[i].thread_id = i;
-      threadInfo[i].job_size = s / NUM_THREADS;
-      err = pthread_create(&thread[i], NULL, thr_access_fn, (void*)&threadInfo[i]);
+      pthreads[i].thread_id = i;
+      pthreads[i].row_in_mx = i / (NUM_THREADS / NUM_NODES);
+      pthreads[i].p = i  - pthreads[i].row_in_mx * (NUM_THREADS / NUM_NODES);
+      pthreads[i].job_size = s / NUM_THREADS;
+      pthreads[i].from = pthreads[i].p * pthreads[i].job_size;
+      if ((pthreads[i].p + 1) % (NUM_THREADS / NUM_NODES) == 0) {
+        pthreads[i].job_size += ((s / NUM_NODES) % (NUM_THREADS / NUM_NODES));
+      }
+      if (pthreads[i].thread_id == NUM_THREADS - 1) {
+        pthreads[i].job_size +=  (s % NUM_NODES);
+      }
+
+      err = pthread_create(&pthreads[i].thread, NULL, thr_access_fn, (void *)&pthreads[i]);
       if (err != 0) {
         printf("error during thread creation, exit...\n");
         exit(-1);
       }
     }
-    // make sure all thread finished the execution
+
+    construct_barrier(pthreads, NUM_THREADS);
+    auto done = std::chrono::high_resolution_clock::now();
+    std::cout << "parallel access matrix, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << "ns" << endl;
+    printf("\n");
+    //  check_mx();
+
+
+    /**do the multiplication with a vector*/
+    v = (float*)emalloc(sizeof(float) * COLS);
+    w = (float*)emalloc(sizeof(float) * ROWS);
+    for (int i = 0; i < COLS; i++) {
+      v[i] = 1;
+    }
+    for (int i = 0; i < ROWS; i++) {
+      w[i] = 0;
+    }
+    
+    
+    // distribute multiplication task on different threads
+    started = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NUM_THREADS; i++) {
-      err = pthread_join(thread[i], &status);
-      if (err) {
-        printf("error, return code from pthread_join() is %d\n", status);
+      if (ROWS / NUM_THREADS == 0) {
+        pthreads[i].from = i * 1;
+        pthreads[i].job_size = 1;
+      } else {
+        pthreads[i].from  = i * (ROWS / NUM_THREADS);
+        pthreads[i].job_size = ROWS / NUM_THREADS;
+      }
+
+      if (i == NUM_THREADS - 1) {
+        pthreads[i].job_size += (ROWS % NUM_THREADS);
+      }
+      err = pthread_create(&pthreads[i].thread, NULL, thr_multiply_fn, (void*)&pthreads[i]);
+      if (err != 0) {
+        printf("error during thread creation, exit...\n");
+        exit(-1);
       }
     }
 
-    auto done = std::chrono::high_resolution_clock::now();
-    std::cout << "From initialization to finished, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << "ns" << endl;
-    
-    // check the access result
-    /**
-       for(int i = 0; i < NUM_NODES; i++) {
-       if (i == NUM_NODES -1) {
-       s_each = s_each + s % NUM_NODES;
-       }
-       for (int j = 0; j < s_each; j++) {
-       printf("%.1f ", mx[i][j]);
-       }
-       printf("\n");
-       }
-    ,*/
-    
-    for (int i = 0; i < NUM_NODES; i++) {
-      numa_free(mx[i], s_each * sizeof(float));
-    }
-    free(threadInfo);
-    free(mx);
-    free(thread);
 
+    construct_barrier(pthreads, NUM_THREADS);
+    done = std::chrono::high_resolution_clock::now();
+    std::cout << "parallel multiplication, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << "ns" << endl;
+    //check_w();
+
+    for (int i = 0; i < NUM_NODES; i++) {
+      if (i == NUM_NODES - 1) {
+        numa_free(mx[i], (s / NUM_NODES + s % NUM_NODES) * sizeof(float));
+      } else {
+        numa_free(mx[i], (s / NUM_NODES) * sizeof(float));
+      }
+    }
+
+    free(mx);
+    free(pthreads);
     exit(0);
+  }
+
+  void *emalloc(size_t s) {
+    void *result = malloc(s);
+    if (result == nullptr) {
+      fprintf(stderr, "memory allocation failed");
+      exit(EXIT_FAILURE);
+    }
+    return result;
+  }
+
+  void *remalloc(void *p, size_t s) {
+    void *result = realloc(p, s);
+    if (result == NULL) {
+      fprintf(stderr, "memory allocation failed");
+      exit(EXIT_FAILURE);
+    }
+    return result;
   }
 
   // thread function to use libnuma to allocate memory on specific node
   void* thr_alloc_fn(void* arg) {
-    pid_t pid;
-    pthread_t tid;
-    int i;
+    pInfo info = *(pInfo*)arg;
 
-    pid = getpid();
-    tid = pthread_self();
-    i = *(int *)arg;
-
-    //  printf("pid = %lu, tid = %lu, for i = %d, is running on cpu: %d\n", (unsigned long)pid, (unsigned long)tid, i, sched_getcpu());
-    mx[i] = (float*)numa_alloc_onnode(s_each * sizeof(float), i);
-    
-    for (int k = 0; k < s_each; k++) {
-      mx[i][k] = 0.0;
+    mx[info.thread_id] = (float*)numa_alloc_onnode(info.job_size * sizeof(float), info.thread_id);
+    for (int k = 0; k < info.job_size; k++) {
+      mx[info.row_in_mx][k] = 0;
     }
 
-    return 0;
+    return (void *)0;
   }
+
 
   void* thr_access_fn(void* arg) {
-    pid_t pid;
-    pInfo info;  
-    int node_index;
-    int sched_cpu;
-    int current_on_node;
-    pthread_t tid;
+    pid_t pid = getpid();
+    int sched_cpu = sched_getcpu();
+    int current_on_node = topology[sched_cpu];
 
-    info = *(struct Access_info_per_thread*)arg;
-    pid = getpid();
-    sched_cpu = sched_getcpu();
-    current_on_node = topology[sched_cpu];
-    int id = info.thread_id;
-
-    // check if the corresponding thread is running on the right set of CPUs, so it has local access to corresponding node.
-    node_index = id / (NUM_THREADS / NUM_NODES);
-    // migrate thread to certain cpu set, so that it can access data locally
-    if (node_index != current_on_node) {
-      //     printf("pid = %lu, tid = %ld, on cpu: %d, node_index: %d, current_on_node: %d\n", (unsigned long)pid, (unsigned long)info.thread_id, sched_cpu, node_index, current_on_node);
-      // create cpu set mask
-      if (!without_numa) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        vector<int> cpus = topology_inverse[node_index];
-        for (int i = 0; i < cpus.size(); i++) {
-          CPU_SET(cpus[i], &cpuset);
-        }
-        tid = pthread_self();
-        pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
-        sched_cpu = sched_getcpu();
-        current_on_node = topology[sched_cpu];
-        //    printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
+    pInfo info = *(pInfo *)arg;
+    int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
+    if(with_numa && node_index != current_on_node) {
+      //    printf("thread_id = %d, on cpu %d, on node %d, should be on node%d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node, node_index);
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      vector<int> cpus = topology_inverse[node_index];
+      for (int i = 0; i < cpus.size(); i++) {
+        CPU_SET(cpus[i], &cpuset);
       }
-    } else {
-      //    printf("pid = %lu, tid = %ld, on cpu: %d, node_index: %d\n", (unsigned long)pid, (unsigned long)info.thread_id, sched_cpu, node_index);
-    }
-    // p tells the current thread's postion in the corresponding node section
-    int p = id - node_index * (NUM_THREADS / NUM_NODES);
-
-    int from = p * info.job_size;
-    int to = from + info.job_size;
-    // if it is the last thread in a NUMA node section
-    if ((p + 1) % (NUM_THREADS / NUM_NODES) == 0) {
-      to = s_each % (NUM_THREADS / NUM_NODES) + to;
+      pthread_t tid = pthread_self();
+      pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+      sched_cpu = sched_getcpu();
+      current_on_node = topology[sched_cpu];
+      //    printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
     }
 
-    // if it is the last thread
-    if (id == NUM_THREADS - 1) {
-      to = to + s % NUM_NODES;
+    for (long i = info.from; i < info.from + info.job_size; i++) {
+      mx[info.row_in_mx][i] = 3.0;
     }
-
-    for (int i = from; i < to; i++) {
-      mx[node_index][i] = 3.0;
-    }
-
-    return 0;
+    return (void *)0;
   }
+
+  void* thr_multiply_fn(void* arg) {
+    pid_t pid = getpid();
+    int sched_cpu = sched_getcpu();
+    int current_on_node = topology[sched_cpu];
+
+    pInfo info = *(pInfo*)arg;
+    int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
+    if(with_numa && node_index != current_on_node) {
+      printf("thread_id = %d, on cpu %d, on node %d, should be on node%d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node, node_index);
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      vector<int> cpus = topology_inverse[node_index];
+      for (int i = 0; i < cpus.size(); i++) {
+        CPU_SET(cpus[i], &cpuset);
+      }
+      pthread_t tid = pthread_self();
+      pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+      sched_cpu = sched_getcpu();
+      current_on_node = topology[sched_cpu];
+      printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
+    }
+
+    for (int r = info.from; r < info.from  + info.job_size; ++r) {
+      // get corresponding mx(i, j)
+      for (int i = 0; i < COLS; i++) {
+        long l = r * COLS + i;
+        long row_in_mx = l / (s / NUM_NODES) - 1;
+        if (row_in_mx < 0) {
+          row_in_mx = 0;
+        }
+        long col_in_mx = l % (s / NUM_NODES);
+        w[r] += (*(*(mx + row_in_mx) + col_in_mx) * v[i]);
+      }
+    }
+
+    return (void *)0;
+  }
+
+  void check_mx() {
+    // check the content of mx
+    long size_for_each_node = s / NUM_NODES;
+
+    for(int i = 0; i < NUM_NODES; i++) {
+      if (i == NUM_NODES -1) {
+        size_for_each_node += s % NUM_NODES;
+      }
+      for (int j = 0; j < size_for_each_node; j++) {
+        printf("%.f ", *(*(mx + i) + j));
+      }
+      printf("\n");
+    }
+  }
+
+  void check_w() {
+    printf("w = \n");
+    for (long i = 0; i < ROWS; i++) {
+      printf("%.f ", w[i]);
+    }
+    printf("\n");
+  }
+
+  void construct_barrier(pInfo* pthreads, int n_threads) {
+    int err;
+    void* status;
+    for (int i = 0; i < n_threads; i++) {
+      err = pthread_join(pthreads[i].thread, &status);
+      if (err) {
+        printf("error, return code from pthread_join() is %d\n", *(int*)status);
+      }
+    }
+  }
+
 
   void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse) {
 
@@ -563,17 +631,8 @@ Assume the number of threads is multiple times of NUMA nodes.
       topology_inverse.insert(make_pair(node, cpus_on_node));
     }
   }
-
-
-  void *emalloc(size_t s) {
-    void *result = malloc(s);
-    if (result == NULL) {
-      fprintf(stderr, "memory allocation failed");
-      exit(EXIT_FAILURE);
-    }
-    return result;
-  }
 #+END_SRC
+
 *** Execution record
 =./bin/parallel_memory_access 100000 100000 0= for with numa awareness
 =./bin/parallel_memory_access 100000 100000 1= for without numa awareness
@@ -1026,3 +1085,24 @@ In general, data parallelisation in the case of matrix time matrix could not be 
   Data parallelisation with NUMA awareness could be hard since any interaction part in the parallel region will require access from remote nodes(because you generate threads on different CPUs => different nodes). Thus, the result will be similar with averagely allocation memory across different nodes which is the default setting for NUMA. The more frequently the interaction is, the less effect of NUMA allocation will be. It is not about how to allocate memory with NUMA, it is about the interaction between different parts of data which is inherited from the algorithm.
   
   So, a simple "solution" will be make multiple copy of data and let each thread works on its own corresponding copy. That is a kind of  task parallelism and I doult about the practical usage of it. 
+** Error from using pthread
+- result for check the matrix which is allocated according to the topology of NUMA nodes:
+#+BEGIN_SRC sh
+  pid = 60287, tid = 123145488523264, for i = 0
+  pid = 60287, tid = 123145489059840, for i = 1
+  pid = 60287, tid = 123145489596416, for i = 2
+  pid = 60287, tid = 123145490132992, for i = 3
+  pid = 60287, tid = 123145490669568, for i = 4
+  pid = 60287, tid = 123145491206144, for i = 5
+  pid = 60287, tid = 123145491742720, for i = 6
+  pid = 60287, tid = 123145492279296, for i = 7
+  for thread = 7, it gets extra job, size_for_each_node = 14
+      0 0 0 0 0 0 0 0 0 
+      0 0 0 0 0 0 0 0 0 
+      0 0 0 0 0 0 0 0 0 
+      0 0 0 0 0 0 0 0 0 
+      0 0 0 0 0 0 0 0 0 
+      0 0 0 0 0 0 0 0 0 
+      0 0 0 0 0 0 0 0 0 
+      0 0 0 0 0 0 0 0 0 0 0 0 -76060119211228138797542729056256 0 
+#+END_SRC
