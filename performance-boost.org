@@ -444,8 +444,8 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     for (int i = 0; i < ROWS; i++) {
       w[i] = 0;
     }
-    
-    
+      
+      
     // distribute multiplication task on different threads
     started = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -631,6 +631,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
       topology_inverse.insert(make_pair(node, cpus_on_node));
     }
   }
+
 #+END_SRC
 
 *** Execution record
@@ -644,6 +645,52 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 |    4 |  1001347748 |  1190312127 |
 | mean | 1028685900. | 1199543800. |
 #+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+
+- result with matrix time vector
+  #+BEGIN_SRC sh
+    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 128000 128000 1
+    WITH numa
+    s = 16384000000
+    allocate 128000 by 128000 matrix
+    parallel access matrix, use: 2681891576ns
+
+    parallel multiplication, use: 23441440153ns
+    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 128000 128000 0
+    WITHOUT numa configuration
+    s = 16384000000
+    allocate 128000 by 128000 matrix
+    parallel access matrix, use: 2843614110ns
+
+    parallel multiplication, use: 23304168441ns
+    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 1
+    WITH numa
+    s = 40000000000
+    allocate 200000 by 200000 matrix
+    parallel access matrix, use: 6593969799ns
+
+    parallel multiplication, use: 58298070880ns
+    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 0
+    WITHOUT numa configuration
+    s = 40000000000
+    allocate 200000 by 200000 matrix
+    parallel access matrix, use: 6545678079ns
+
+    parallel multiplication, use: 58185872610ns
+    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 1
+    WITH numa
+    s = 40000000000
+    allocate 200000 by 200000 matrix
+    parallel access matrix, use: 6576542917ns
+
+    parallel multiplication, use: 58374621968ns
+    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 0
+    WITHOUT numa configuration
+    s = 40000000000
+    allocate 200000 by 200000 matrix
+    parallel access matrix, use: 6849083205ns
+
+    parallel multiplication, use: 58467123391ns
+  #+END_SRC
 * Performance boost using OpenMP
 ** code for Matrix times Vector
 #+BEGIN_SRC c++
