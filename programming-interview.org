@@ -236,6 +236,28 @@ C provides a form of user-level exceptional control flow, called a nonlocal jump
 - =pmap=
 = =cat /proc/xx=
 ** Virtual Memory
+*** 9.9 Dynamic memory allocation
+
+* Understanding the Linux Kernel
+** Chapter 02 Memory Addressing
+*** Memory Addresses
+- logical address -> through segmentation units -> linear address -> through paging unit -> physical address
+*** Segmentation in Hardware
+- real mode, and protected mode. The following focus on translation when protected mode is enabled.
+****  Segment Selector and Segmentation Registers
+- logical address
+  |-------------------------+---------------|
+  | 16-bit segment selector | 32-bit offset |
+  |-------------------------+---------------|
+
+- segment selector
+|--------+---------------------+--------------------------------|
+| 15 ~ 3 |                   2 | 1 ~ 0                          |
+|--------+---------------------+--------------------------------|
+| Index  | TI(table indicator) | RPL(requestor privilege level) |
+|--------+---------------------+--------------------------------|
+
+  
 
 * Coding Interview
 ** Low level problem
