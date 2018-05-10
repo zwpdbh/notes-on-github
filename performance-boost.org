@@ -691,6 +691,20 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
     parallel multiplication, use: 58467123391ns
   #+END_SRC
+
+- time measurement with PMC
+  size = 128000 * 128000  and 200000 * 200000  
+  | id                                 |             1 |             2 |             3 |             4 |
+  | access with NUMA in PMC            |    5866552998 |    5609193649 |   15030122505 |   13276063893 |
+  | access with NUMA                   |  2550633016ns |  2438739966ns |  6534770741ns |  5772144665ns |
+  | multiplication with NUMA in PMC    |   53725628910 |   53966388707 |  133871754025 |  173081438682 |
+  | multiplication with NUMA           | 23358808022ns | 23463484569ns | 58204727318ns | 75252300364ns |
+  | access without NUMA in PMC         |    5448400375 |    5395319446 |   12840327576 |   12799387211 |
+  | access wihout NUMA                 |  2368826995ns |  2345749596ns |  5582692694ns |  5564883155ns |
+  | multiplication without NUMA in PMC |   53763292569 |   53476715266 |  133370890684 |  134135194494 |
+  | multiplication without NUMA        | 23375182822ns | 23250584307ns | 57986960759ns | 58319263048ns |
+
+
 * Performance boost using OpenMP
 ** code for Matrix times Vector
 #+BEGIN_SRC c++
