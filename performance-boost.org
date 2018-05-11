@@ -165,7 +165,6 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 *** code to measure access time
 #+BEGIN_SRC c
   #include <iostream>
-  #include <chrono>
   #include <vector>
   #include <sched.h>
   #include <stdio.h>
@@ -180,70 +179,32 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
   using namespace std;
 
-  void *emalloc(size_t s) {
-    void *result = malloc(s);
-    if (result == NULL) {
-      fprintf(stderr, "memory allocation failed");
-      exit(EXIT_FAILURE);
-    }
-    return result;
-  }
+  void *emalloc(size_t s);
+  void *remalloc(void *p, size_t s);
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
 
-  void initMap(map<int, int> &topology) {
-    // node 0 cpus: 0 4 8 12 16 20 24 28
-    for (int i = 0; i <=28; i+=4) {
-      topology.insert(make_pair(i, 0));
-    }
-
-    // node 1 cpus: 32 36 40 44 48 52 56 60
-    for (int i = 32; i <=60; i+=4) {
-      topology.insert(make_pair(i, 1));
-    }
-
-    // node 2 cpus: 2 6 10 14 18 22 26 30
-    for (int i = 2; i <= 30; i+=4) {
-      topology.insert(make_pair(i, 2));
-    }
-
-    // node 3 cpus: 34 38 42 46 50 54 58 62
-    for (int i = 34; i <= 62; i+=4) {
-      topology.insert(make_pair(i, 3));
-    }
-    
-    // node 4 cpus: 3 7 11 15 19 23 27 31
-    for (int i = 3; i <= 31; i+=4) {
-      topology.insert(make_pair(i, 4));
-    }
-
-    // node 5 cpus: 35 39 43 47 51 55 59 63
-    for (int i = 35; i <= 63; i+=4) {
-      topology.insert(make_pair(i, 5));
-    }
-
-    // node 6 cpus: 1 5 9 13 17 21 25 29
-    for (int i = 1; i <= 29; i+=4) {
-      topology.insert(make_pair(i, 6));
-    }
-
-    // node 7 cpus: 33 37 41 45 49 53 57 61
-    for (int i = 33; i <= 61; i+=4) {
-      topology.insert(make_pair(i, 7));
-    }
+  inline uint64_t tick() {
+    uint32_t tmp[2];
+    __asm__ ("rdtsc" : "=a" (tmp[1]), "=d" (tmp[0]) : "c" (0x10) );
+    return (((uint64_t) tmp[0]) << 32) | tmp[1];
   }
 
   /**allocate and access on the same node*/
   int main(int argc, char* argv[]) {
     if (argc != 3) {
-      printf("usage: specify the size of n by n matrix, exit...\n");
+      printf("usage: <size> <remote=1 true, or 0 false>, exit...\n");
       exit(-1);
     }
 
     if(numa_available() == -1) {
       printf("no libnuma support\n");
+    } else {
+      numa_set_strict(1);
     }
     
     map<int, int> topology;
-    initMap(topology);
+    map<int, vector<int> > topology_inverse;
+    initMap(topology, topology_inverse);
 
     long mx_size = atol(argv[1]);
     int remote = atoi(argv[2]);
@@ -266,7 +227,6 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     printf("Now, main thread tid = %lu, is executing on cpu: %d, on node %d\n",pthread_self(), cpu_num, topology[cpu_num]);
 
     float* mx = NULL;
-    numa_set_strict(1);
     
     if (remote) {
       on_node = 7;
@@ -277,42 +237,71 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
       printf("could not allocate memory on node %d, exit...\n", on_node);
     }
     
-    cpu_num = sched_getcpu();
-    printf("Make sure, main thread tid = %lu, is executing on cpu: %d, on node %d\n",pthread_self(), cpu_num, topology[cpu_num]);
-    auto started = std::chrono::high_resolution_clock::now();
-    printf("Accessing matrix from cpu %d on node %d, to access memory allocated on node %d.\n", cpu_num, topology[cpu_num], on_node);
+    auto start = tick();
     for (long i = 0; i < mx_size * mx_size; i++) {
       mx[i] = i + i * 0.5 + i / 2;
     }
 
-    auto done = std::chrono::high_resolution_clock::now();
-    std::cout << "From initialization to finished, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << "ns" << endl;
+    auto end = tick();
+    if (remote && topology[sched_getcpu()] != on_node) {
+      std::cout << "remote access, use: " << end - start << endl;
+    } else if (!remote && topology[sched_getcpu()] == on_node) {
+      std::cout << "local access, use: " << end - start << endl;
+    }
 
     numa_free(mx, mx_size * mx_size * sizeof(float));
 
     return 0;
   }
+
+  void *emalloc(size_t s) {
+    void *result = malloc(s);
+    if (result == nullptr) {
+      fprintf(stderr, "memory allocation failed");
+      exit(EXIT_FAILURE);
+    }
+    return result;
+  }
+
+  void *remalloc(void *p, size_t s) {
+    void *result = realloc(p, s);
+    if (result == NULL) {
+      fprintf(stderr, "memory allocation failed");
+      exit(EXIT_FAILURE);
+    }
+    return result;
+  }
+
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse) {
+
+    vector<int> index_set = {0, 32, 2, 34, 3, 35, 1, 33};
+    for (int node = 0 ; node < index_set.size(); node++) {
+      vector<int> cpus_on_node;
+      for (int cpu = index_set[node]; cpu < index_set[node] + 32; cpu+=4) {
+        //      printf("make pair: %d <=> %d\n", node, cpu);
+        topology.insert(make_pair(cpu, node));
+        cpus_on_node.push_back(cpu);
+      }
+      topology_inverse.insert(make_pair(node, cpus_on_node));
+    }
+  }
 #+END_SRC
 
-***** =numa_set_strict(1);= must be set !
-**** time execution record
-| ./bin/memory_access_without_parallel 100000 1 (remote case) | ./bin/memory_access_without_parallel 100000 0 (local) |
-|                                                162444187364 |                                          138574271370 |
-|                                                155324195985 |                                          149659914995 |
-|                                                159565283709 |                                          148881298203 |
-|                                               159111220000. |                                         145705160000. |
-#+TBLFM: @5$1=vmean(@2..@4)::@5$2=vmean(@2..@4)
 
+*** access time records
+size = 12800
+|   id |      remote |      local |
+|    1 |  6190994967 | 5525219763 |
+|    2 |  4853278945 | 4454001759 |
+|    3 |  5865416519 | 4404425967 |
+|    4 |  6259437334 | 5740065838 |
+|    5 |  5452799794 | 5076688723 |
+| mean | 5724385500. | 5040080410 |
+|------+-------------+------------|
+#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)
 
-| ./bin/memory_access_without_parallel 10000 1 (remote) | ./bin/memory_access_without_parallel 10000 0 (local) |
-|                                            1403278413 |                                           1262754231 |
-|                                            1635843573 |                                           1428285921 |
-|                                            1661301586 |                                           1483400262 |
-|                                            1530844828 |                                           1355476917 |
-|                                            1557817100 |                                          1382479300. |
-#+TBLFM: @6$1=vmean(@2..@5)::@6$2=vmean(@2..@5)
-***** It is clearly to see that the time execution on remote case is longer than local access case.
-
+It is clear to see the effect of remote access is slower.
+  
 ** Test parallel version of code for memory access and multiplication with vector
 *** code with parallel access and multiplication
 #+BEGIN_SRC c
