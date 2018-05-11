@@ -473,7 +473,8 @@ It is clear to see the effect of remote access is slower.
       free(mx);
       free(v);
       free(w);
-
+      exit(0);
+      
     } else {
 
       mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
@@ -588,9 +589,8 @@ It is clear to see the effect of remote access is slower.
       free(pthreads);
       free(v);
       free(w);
+      exit(0);
     } // end of else
-
-    exit(0);
   }
 
   void *emalloc(size_t s) {
