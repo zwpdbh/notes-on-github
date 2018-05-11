@@ -7,16 +7,16 @@
   #+BEGIN_SRC sh
     wzhao@r815:~/numa-knn$ numactl --hardware
     available: 8 nodes (0-7)
-    node 0 cpus: 0 4 8 12 16 20 24 28        === 
+    node 0 cpus: 0 4 8 12 16 20 24 28        
     node 0 size: 65526 MB
     node 0 free: 62754 MB
-    node 1 cpus: 32 36 40 44 48 52 56 60     === 
+    node 1 cpus: 32 36 40 44 48 52 56 60     
     node 1 size: 65536 MB
     node 1 free: 60707 MB
-    node 2 cpus: 2 6 10 14 18 22 26 30      ===
+    node 2 cpus: 2 6 10 14 18 22 26 30      
     node 2 size: 65536 MB
     node 2 free: 63404 MB
-    node 3 cpus: 34 38 42 46 50 54 58 62   ===
+    node 3 cpus: 34 38 42 46 50 54 58 62   
     node 3 size: 65536 MB
     node 3 free: 63005 MB
     node 4 cpus: 3 7 11 15 19 23 27 31
@@ -356,6 +356,9 @@ It is clear to see the effect of remote access is slower.
   void* thr_alloc_fn(void* arg);
   void* thr_access_fn(void* arg);
   void* thr_multiply_fn(void* arg);
+  void* normal_alloc_fn(void* arg);
+  void* normal_access_fn(void* arg);
+  void* normal_multiply_fn(void* arg);
   void check_mx();
   void check_w();
   void construct_barrier(pInfo* pthreads, int n_threads);
@@ -366,6 +369,13 @@ It is clear to see the effect of remote access is slower.
       printf("usage: ./bin/matrix_multiplication <rows> <cols> <with_numa>, exit...\n");
       exit(-1);
     }
+    
+    if(numa_available() == -1) {
+      printf("no libnuma support\n");
+    } else  {
+      numa_set_strict(1);    
+    }
+
     ROWS = atol(argv[1]);
     COLS = atol(argv[2]);
     with_numa = atoi(argv[3]);
@@ -385,119 +395,201 @@ It is clear to see the effect of remote access is slower.
     main_thread = pthread_self();
     pthread_setaffinity_np(main_thread, sizeof(cpu_set_t), &cpuset);
     printf("fix main_thread: %lu on cpu0\n", main_thread);
-
-    mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
-    numa_set_strict(1);
-    pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_NODES);
-    pthread_t* thread; // array of pthread_t, for catching each created thread
-    int err = 0;
-
-    printf("allocate %ld by %ld matrix\n", ROWS, COLS);
-    /**Allocate m by n matrix with the shape NUM_NODES * some right size*/
-    for (int i = 0; i < NUM_NODES; i++) {
-      pthreads[i].thread_id = i;
-      pthreads[i].row_in_mx = i;
-      pthreads[i].job_size = (s/NUM_NODES);
-      if (pthreads[i].thread_id == NUM_NODES - 1) {
-        pthreads[i].job_size += (s % NUM_NODES);
-      }
-      err = pthread_create(&pthreads[i].thread, NULL, thr_alloc_fn, (void *)&pthreads[i]);
-      if (err != 0) {
-        printf("error during thread creation, exit..\n");
-        exit(-1);
-      }
-    }
-
-    /**manually created barrier*/
-    construct_barrier(pthreads, NUM_NODES);
-    //  check_mx();
-
-    auto start = tick();
-    //  auto started = std::chrono::high_resolution_clock::now();
-    pthreads =(pInfo*)remalloc(pthreads, sizeof(*pthreads) * NUM_THREADS);
-    for (int i = 0; i < NUM_THREADS; i++) {
-      pthreads[i].thread_id = i;
-      pthreads[i].row_in_mx = i / (NUM_THREADS / NUM_NODES);
-      pthreads[i].p = i  - pthreads[i].row_in_mx * (NUM_THREADS / NUM_NODES);
-      pthreads[i].job_size = s / NUM_THREADS;
-      pthreads[i].from = pthreads[i].p * pthreads[i].job_size;
-      if ((pthreads[i].p + 1) % (NUM_THREADS / NUM_NODES) == 0) {
-        pthreads[i].job_size += ((s / NUM_NODES) % (NUM_THREADS / NUM_NODES));
-      }
-      if (pthreads[i].thread_id == NUM_THREADS - 1) {
-        pthreads[i].job_size +=  (s % NUM_NODES);
-      }
-
-      err = pthread_create(&pthreads[i].thread, NULL, thr_access_fn, (void *)&pthreads[i]);
-      if (err != 0) {
-        printf("error during thread creation, exit...\n");
-        exit(-1);
-      }
-    }
-
-    construct_barrier(pthreads, NUM_THREADS);
-    auto end = tick();
-    //  auto done = std::chrono::high_resolution_clock::now();
-    printf("parallel access matrix, use: %lld\n", end - start);
-    //  std::cout << "By c++, parallel access matrix, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << endl;
-    //  check_mx();
-
-
-    /**do the multiplication with a vector*/
-    v = (float*)emalloc(sizeof(float) * COLS);
-    w = (float*)emalloc(sizeof(float) * ROWS);
-    for (int i = 0; i < COLS; i++) {
-      v[i] = 1;
-    }
-    for (int i = 0; i < ROWS; i++) {
-      w[i] = 0;
-    }
-      
-      
-    // distribute multiplication task on different threads
-    start = tick();
-    //  started = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < NUM_THREADS; i++) {
-      if (ROWS / NUM_THREADS == 0) {
-        pthreads[i].from = i * 1;
-        pthreads[i].job_size = 1;
-      } else {
-        pthreads[i].from  = i * (ROWS / NUM_THREADS);
+    
+    if (with_numa == -1) {
+      mx = (float**)emalloc(sizeof(float*) * ROWS);
+      pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
+      int err = 0;
+      printf("allocate %ld by %ld matrix\n", ROWS, COLS);
+      for (int i = 0; i < NUM_THREADS; i++) {
+        pthreads[i].thread_id = i;
         pthreads[i].job_size = ROWS / NUM_THREADS;
+        pthreads[i].from = i * (ROWS / NUM_THREADS);
+        if (pthreads[i].thread_id == NUM_THREADS -1) {
+          pthreads[i].job_size += (ROWS % NUM_THREADS);
+        }
+        //      printf("thread_%d, is allocating mx[i] from %ld to %ld\n", pthreads[i].thread_id, pthreads[i].from, pthreads[i].from + pthreads[i].job_size);
+        err = pthread_create(&pthreads[i].thread, NULL, normal_alloc_fn, (void *)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit..\n");
+          exit(-1);
+        }
       }
 
-      if (i == NUM_THREADS - 1) {
-        pthreads[i].job_size += (ROWS % NUM_THREADS);
-      }
-      err = pthread_create(&pthreads[i].thread, NULL, thr_multiply_fn, (void*)&pthreads[i]);
-      if (err != 0) {
-        printf("error during thread creation, exit...\n");
-        exit(-1);
-      }
-    }
+      construct_barrier(pthreads, NUM_THREADS);
 
-
-    construct_barrier(pthreads, NUM_THREADS);
-    end = tick();
-    //  done = std::chrono::high_resolution_clock::now();
-    printf("parallel multiplication, use: %lld\n", end - start);
-    //  std::cout << "By c++, parallel multiplication, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << endl;
-    //  check_w();
+      /**measure access time*/
+      auto start = tick();
+      for (int i = 0; i < NUM_THREADS; i++) {
+        pthreads[i].thread_id = i;
+        pthreads[i].job_size = ROWS / NUM_THREADS;
+        pthreads[i].from = i * (ROWS / NUM_THREADS);
+        if (pthreads[i].thread_id == NUM_THREADS - 1) {
+          pthreads[i].job_size += (ROWS % NUM_THREADS);
+        }
+        err = pthread_create(&pthreads[i].thread, NULL, normal_access_fn, (void*)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit...\n");
+          exit(-1);
+        }
+      }
+        
+      construct_barrier(pthreads, NUM_THREADS);
+      auto end = tick();
+      printf("normal parallel access matrix, use: %lld\n", end - start);
       
-    int cpu_num = sched_getcpu();
-    if (cpu_num) {
-      printf("main thread is not fixed on cpu0 \n");
-    }
-    for (int i = 0; i < NUM_NODES; i++) {
-      if (i == NUM_NODES - 1) {
-        numa_free(mx[i], (s / NUM_NODES + s % NUM_NODES) * sizeof(float));
-      } else {
-        numa_free(mx[i], (s / NUM_NODES) * sizeof(float));
+      v = (float*)emalloc(sizeof(float) * COLS);
+      w = (float*)emalloc(sizeof(float) * ROWS);
+      for (int i = 0; i < COLS; i++) {
+        v[i] = 1;
       }
-    }
+      for (int i = 0; i < ROWS; i++) {
+        w[i] = 0;
+      }
 
-    free(mx);
-    free(pthreads);
+      start = tick();
+      for (int i = 0; i < NUM_THREADS; i++) {
+        pthreads[i].thread_id = i;
+        pthreads[i].job_size = ROWS / NUM_THREADS;
+        pthreads[i].from = i * (ROWS / NUM_THREADS);
+        if (pthreads[i].thread_id == NUM_THREADS -1) {
+          pthreads[i].job_size += (ROWS % NUM_THREADS);
+        }
+        err = pthread_create(&pthreads[i].thread, NULL, normal_multiply_fn, (void*)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit...\n");
+          exit(-1);
+        }
+      }
+      construct_barrier(pthreads, NUM_THREADS);
+      printf("===after parallel multiplication===\n");
+      end = tick();
+      printf("normal parallel multiplication use: %lld\n", end - start);
+
+      for (int i = 0; i < ROWS; i++) {
+        free(mx[i]);
+      }
+      free(pthreads);
+      free(mx);
+      free(v);
+      free(w);
+
+    } else {
+
+      mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
+
+      pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_NODES);
+      pthread_t* thread; // array of pthread_t, for catching each created thread
+      int err = 0;
+
+      printf("allocate %ld by %ld matrix\n", ROWS, COLS);
+      /**Allocate m by n matrix with the shape NUM_NODES * some right size*/
+      for (int i = 0; i < NUM_NODES; i++) {
+        pthreads[i].thread_id = i;
+        pthreads[i].row_in_mx = i;
+        pthreads[i].job_size = (s/NUM_NODES);
+        if (pthreads[i].thread_id == NUM_NODES - 1) {
+          pthreads[i].job_size += (s % NUM_NODES);
+        }
+        err = pthread_create(&pthreads[i].thread, NULL, thr_alloc_fn, (void *)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit..\n");
+          exit(-1);
+        }
+      }
+
+      /**manually created barrier*/
+      construct_barrier(pthreads, NUM_NODES);
+      //  check_mx();
+
+      auto start = tick();
+      //  auto started = std::chrono::high_resolution_clock::now();
+      pthreads =(pInfo*)remalloc(pthreads, sizeof(*pthreads) * NUM_THREADS);
+      for (int i = 0; i < NUM_THREADS; i++) {
+        pthreads[i].thread_id = i;
+        pthreads[i].row_in_mx = i / (NUM_THREADS / NUM_NODES);
+        pthreads[i].p = i  - pthreads[i].row_in_mx * (NUM_THREADS / NUM_NODES);
+        pthreads[i].job_size = s / NUM_THREADS;
+        pthreads[i].from = pthreads[i].p * pthreads[i].job_size;
+        if ((pthreads[i].p + 1) % (NUM_THREADS / NUM_NODES) == 0) {
+          pthreads[i].job_size += ((s / NUM_NODES) % (NUM_THREADS / NUM_NODES));
+        }
+        if (pthreads[i].thread_id == NUM_THREADS - 1) {
+          pthreads[i].job_size +=  (s % NUM_NODES);
+        }
+
+        err = pthread_create(&pthreads[i].thread, NULL, thr_access_fn, (void *)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit...\n");
+          exit(-1);
+        }
+      }
+
+      construct_barrier(pthreads, NUM_THREADS);
+      auto end = tick();
+      //  auto done = std::chrono::high_resolution_clock::now();
+      printf("parallel access matrix, use: %lld\n", end - start);
+      //  std::cout << "By c++, parallel access matrix, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << endl;
+      //  check_mx();
+
+
+      /**do the multiplication with a vector*/
+      v = (float*)emalloc(sizeof(float) * COLS);
+      w = (float*)emalloc(sizeof(float) * ROWS);
+      for (int i = 0; i < COLS; i++) {
+        v[i] = 1;
+      }
+      for (int i = 0; i < ROWS; i++) {
+        w[i] = 0;
+      }
+    
+    
+      start = tick();
+      for (int i = 0; i < NUM_THREADS; i++) {
+        if (ROWS / NUM_THREADS == 0) {
+          pthreads[i].from = i * 1;
+          pthreads[i].job_size = 1;
+        } else {
+          pthreads[i].from  = i * (ROWS / NUM_THREADS);
+          pthreads[i].job_size = ROWS / NUM_THREADS;
+        }
+
+        if (i == NUM_THREADS - 1) {
+          pthreads[i].job_size += (ROWS % NUM_THREADS);
+        }
+        err = pthread_create(&pthreads[i].thread, NULL, thr_multiply_fn, (void*)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit...\n");
+          exit(-1);
+        }
+      }
+
+
+      construct_barrier(pthreads, NUM_THREADS);
+      end = tick();
+      //  done = std::chrono::high_resolution_clock::now();
+      printf("parallel multiplication, use: %lld\n", end - start);
+      //  std::cout << "By c++, parallel multiplication, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << endl;
+      //  check_w();
+    
+      int cpu_num = sched_getcpu();
+      if (cpu_num) {
+        printf("main thread is not fixed on cpu0 \n");
+      }
+      for (int i = 0; i < NUM_NODES; i++) {
+        if (i == NUM_NODES - 1) {
+          numa_free(mx[i], (s / NUM_NODES + s % NUM_NODES) * sizeof(float));
+        } else {
+          numa_free(mx[i], (s / NUM_NODES) * sizeof(float));
+        }
+      }
+
+      free(mx);
+      free(pthreads);
+      free(v);
+      free(w);
+    } // end of else
+
     exit(0);
   }
 
@@ -527,7 +619,7 @@ It is clear to see the effect of remote access is slower.
 
     mx[info.thread_id] = (float*)numa_alloc_onnode(info.job_size * sizeof(float), info.row_in_mx);
     for (long k = 0; k < info.job_size; k++) {
-      ,,*(*(mx + info.row_in_mx) + k) = 0.0;
+      ,*(*(mx + info.row_in_mx) + k) = 0.0;
       //    mx[info.row_in_mx][k] = 0;
     }
     //  printf("thread %d  numa_alloc_onnode(%ld, %d), done\n", info.thread_id, info.job_size, info.row_in_mx);
@@ -624,6 +716,7 @@ It is clear to see the effect of remote access is slower.
     printf("\n");
   }
 
+
   void construct_barrier(pInfo* pthreads, int n_threads) {
     int err;
     void* status;
@@ -635,6 +728,7 @@ It is clear to see the effect of remote access is slower.
       if (err) {
         printf("error, return code from pthread_join() is %d\n", *(int*)status);
       }
+      //    printf("thread %d is joint\n", i);
     }
   }
 
@@ -652,7 +746,39 @@ It is clear to see the effect of remote access is slower.
       topology_inverse.insert(make_pair(node, cpus_on_node));
     }
   }
-  ,#+END_SRC
+
+  void* normal_alloc_fn(void* arg) {
+    pInfo info = *(pInfo*)arg;
+    for (long k = info.from; k < info.from + info.job_size; k++) {
+      mx[k] = (float*)emalloc(sizeof(float) * COLS);
+      for (long j = 0; j < COLS; j++){
+        mx[k][j] = 0;
+      }
+    }
+    //  printf("thread_%d, done alloc.\n", info.thread_id);
+    return (void*) 0;
+  }
+
+  void* normal_access_fn(void* arg) {
+    pInfo info = *(pInfo*)arg;
+
+    for (long k = info.from; k < info.from + info.job_size; k++) {
+      for (long j = 0; j < COLS; j++) {
+        mx[k][j] = 3;
+      }
+    }
+  }
+
+
+  void* normal_multiply_fn(void* arg) {
+    pInfo info = *(pInfo*)arg;
+    //  printf("thread_id = %d, from = %d, to = %d\n", info.thread_id, info.from, info.from + info.job_size);
+    for (long k = info.from; k < info.from + info.job_size; k++) {
+      for (long j = 0; j < COLS; j++) {
+        w[k] += (mx[k][j] * v[j]);
+      }
+    }
+  }
 #+END_SRC
 
 *** Execution record
@@ -672,7 +798,16 @@ It is clear to see the effect of remote access is slower.
 |  3 |   349548272 |          3494935935 |     2751425583 |            28685699069 |
 |  4 |   349219292 |          3493437642 |     2751906677 |            28688361121 |
 
-
+***** compare normal situation with NUMA
+|                        id | WITH access | WITH multiplication | WITHOUT access | WITHOUT multiplication | NORMAL access | NORMAL multiplication |
+|                         1 |   345545088 |          3491522057 |     2691950679 |            28953121579 |    1946171831 |            4201424415 |
+|                         2 |   345787749 |          3490512751 |     2691251738 |            28937151565 |    1945789503 |            4196188061 |
+|                         3 |   345435510 |          3492186245 |     2691130047 |            28946658459 |    1945328493 |            4200917062 |
+|                         4 |   345432426 |          3490595989 |     2692585216 |            28950542474 |    1945922490 |            4200946452 |
+|                      mean |   345550190 |          3491204300 |     2691729420 |            28946869000 |    1945803100 |            4199869000 |
+|---------------------------+-------------+---------------------+----------------+------------------------+---------------+-----------------------|
+| without compare with NUMA |  1945803100 |          4199869000 |                |                        |               |                       |
+|  normal compare with NUMA |  2691729420 |         28946869000 |                |                        |               |                       |
 
 * Performance boost using OpenMP
 ** code for Matrix times Vector
