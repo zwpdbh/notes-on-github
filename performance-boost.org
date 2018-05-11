@@ -315,7 +315,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
 ** Test parallel version of code for memory access and multiplication with vector
 *** code with parallel access and multiplication
-#+BEGIN_SRC C
+#+BEGIN_SRC c
   #include <pthread.h>
   #include <iostream>
   #include <sched.h>
@@ -463,8 +463,8 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     for (int i = 0; i < ROWS; i++) {
       w[i] = 0;
     }
-    
-    
+      
+      
     // distribute multiplication task on different threads
     start = tick();
     //  started = std::chrono::high_resolution_clock::now();
@@ -494,7 +494,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     printf("parallel multiplication, use: %lld\n", end - start);
     //  std::cout << "By c++, parallel multiplication, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << endl;
     //  check_w();
-    
+      
     int cpu_num = sched_getcpu();
     if (cpu_num) {
       printf("main thread is not fixed on cpu0 \n");
@@ -538,7 +538,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
     mx[info.thread_id] = (float*)numa_alloc_onnode(info.job_size * sizeof(float), info.row_in_mx);
     for (long k = 0; k < info.job_size; k++) {
-      ,*(*(mx + info.row_in_mx) + k) = 0.0;
+      ,,*(*(mx + info.row_in_mx) + k) = 0.0;
       //    mx[info.row_in_mx][k] = 0;
     }
     //  printf("thread %d  numa_alloc_onnode(%ld, %d), done\n", info.thread_id, info.job_size, info.row_in_mx);
@@ -663,6 +663,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
       topology_inverse.insert(make_pair(node, cpus_on_node));
     }
   }
+  ,#+END_SRC
 #+END_SRC
 
 *** Execution record
