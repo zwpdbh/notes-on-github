@@ -313,12 +313,11 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 #+TBLFM: @6$1=vmean(@2..@5)::@6$2=vmean(@2..@5)
 ***** It is clearly to see that the time execution on remote case is longer than local access case.
 
-** Test parallel version of code for memory access time
-*** code with parallel 
+** Test parallel version of code for memory access and multiplication with vector
+*** code with parallel access and multiplication
 #+BEGIN_SRC C
   #include <pthread.h>
   #include <iostream>
-  #include <chrono>
   #include <sched.h>
   #include <sys/types.h>
   #include <unistd.h>
@@ -327,7 +326,6 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
   #include <vector>
   #include <numa.h>
   #include <chrono>
-
 
   using namespace std;
 
@@ -344,11 +342,22 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
   map<int, int> topology;
   map<int, vector<int> > topology_inverse;
 
+  long acc_time_from_mx = 0;
+  long acc_time_from_v = 0;
+
+  pthread_t main_thread;
+
+  inline uint64_t tick() {
+    uint32_t tmp[2];
+    __asm__ ("rdtsc" : "=a" (tmp[1]), "=d" (tmp[0]) : "c" (0x10) );
+    return (((uint64_t) tmp[0]) << 32) | tmp[1];
+  }
+
   typedef struct pthreadInfo {
     int thread_id;
     long from;
     long job_size;
-    int row_in_mx;
+    long row_in_mx;
     int p;
     pthread_t thread;
   } pInfo;
@@ -380,12 +389,21 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     printf("s = %ld\n", s);
     initMap(topology, topology_inverse);
 
+    /**make sure the main thread is executed on a fixed cpu*/
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+    main_thread = pthread_self();
+    pthread_setaffinity_np(main_thread, sizeof(cpu_set_t), &cpuset);
+    printf("fix main_thread: %lu on cpu0\n", main_thread);
+
     mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
+    numa_set_strict(1);
     pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_NODES);
     pthread_t* thread; // array of pthread_t, for catching each created thread
     int err = 0;
 
-
+    printf("allocate %ld by %ld matrix\n", ROWS, COLS);
     /**Allocate m by n matrix with the shape NUM_NODES * some right size*/
     for (int i = 0; i < NUM_NODES; i++) {
       pthreads[i].thread_id = i;
@@ -405,8 +423,8 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     construct_barrier(pthreads, NUM_NODES);
     //  check_mx();
 
-    auto started = std::chrono::high_resolution_clock::now();
-
+    auto start = tick();
+    //  auto started = std::chrono::high_resolution_clock::now();
     pthreads =(pInfo*)remalloc(pthreads, sizeof(*pthreads) * NUM_THREADS);
     for (int i = 0; i < NUM_THREADS; i++) {
       pthreads[i].thread_id = i;
@@ -429,9 +447,10 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     }
 
     construct_barrier(pthreads, NUM_THREADS);
-    auto done = std::chrono::high_resolution_clock::now();
-    std::cout << "parallel access matrix, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << "ns" << endl;
-    printf("\n");
+    auto end = tick();
+    //  auto done = std::chrono::high_resolution_clock::now();
+    printf("parallel access matrix, use: %lld\n", end - start);
+    //  std::cout << "By c++, parallel access matrix, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << endl;
     //  check_mx();
 
 
@@ -444,10 +463,11 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     for (int i = 0; i < ROWS; i++) {
       w[i] = 0;
     }
-      
-      
+    
+    
     // distribute multiplication task on different threads
-    started = std::chrono::high_resolution_clock::now();
+    start = tick();
+    //  started = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NUM_THREADS; i++) {
       if (ROWS / NUM_THREADS == 0) {
         pthreads[i].from = i * 1;
@@ -469,10 +489,16 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
 
 
     construct_barrier(pthreads, NUM_THREADS);
-    done = std::chrono::high_resolution_clock::now();
-    std::cout << "parallel multiplication, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << "ns" << endl;
-    //check_w();
-
+    end = tick();
+    //  done = std::chrono::high_resolution_clock::now();
+    printf("parallel multiplication, use: %lld\n", end - start);
+    //  std::cout << "By c++, parallel multiplication, use: " << std::chrono::duration_cast<std::chrono::nanoseconds>(done-started).count() << endl;
+    //  check_w();
+    
+    int cpu_num = sched_getcpu();
+    if (cpu_num) {
+      printf("main thread is not fixed on cpu0 \n");
+    }
     for (int i = 0; i < NUM_NODES; i++) {
       if (i == NUM_NODES - 1) {
         numa_free(mx[i], (s / NUM_NODES + s % NUM_NODES) * sizeof(float));
@@ -508,11 +534,14 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
   void* thr_alloc_fn(void* arg) {
     pInfo info = *(pInfo*)arg;
 
-    mx[info.thread_id] = (float*)numa_alloc_onnode(info.job_size * sizeof(float), info.thread_id);
-    for (int k = 0; k < info.job_size; k++) {
-      mx[info.row_in_mx][k] = 0;
-    }
+    //  printf("id: %d, thread: %lu is allocating %ld on node %d\n", info.thread_id, info.thread, info.job_size, info.row_in_mx);
 
+    mx[info.thread_id] = (float*)numa_alloc_onnode(info.job_size * sizeof(float), info.row_in_mx);
+    for (long k = 0; k < info.job_size; k++) {
+      ,*(*(mx + info.row_in_mx) + k) = 0.0;
+      //    mx[info.row_in_mx][k] = 0;
+    }
+    //  printf("thread %d  numa_alloc_onnode(%ld, %d), done\n", info.thread_id, info.job_size, info.row_in_mx);
     return (void *)0;
   }
 
@@ -538,7 +567,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
       current_on_node = topology[sched_cpu];
       //    printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
     }
-
+    //  printf("id: %d, thread: %lu, is accessing on cpu: %d, on node: %d\n", info.thread_id, info.thread, sched_cpu, current_on_node);
     for (long i = info.from; i < info.from + info.job_size; i++) {
       mx[info.row_in_mx][i] = 3.0;
     }
@@ -553,7 +582,7 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     pInfo info = *(pInfo*)arg;
     int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
     if(with_numa && node_index != current_on_node) {
-      printf("thread_id = %d, on cpu %d, on node %d, should be on node%d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node, node_index);
+      //printf("thread_id = %d, on cpu %d, on node %d, should be on node%d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node, node_index);
       cpu_set_t cpuset;
       CPU_ZERO(&cpuset);
       vector<int> cpus = topology_inverse[node_index];
@@ -564,12 +593,12 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
       pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
       sched_cpu = sched_getcpu();
       current_on_node = topology[sched_cpu];
-      printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
+      //printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
     }
-
-    for (int r = info.from; r < info.from  + info.job_size; ++r) {
+    //  printf("id: %d, thread: %lu, is doing multiplication from cpu %d, on node %d\n", info.thread_id, info.thread, sched_cpu, current_on_node);
+    for (long r = info.from; r < info.from  + info.job_size; ++r) {
       // get corresponding mx(i, j)
-      for (int i = 0; i < COLS; i++) {
+      for (long i = 0; i < COLS; i++) {
         long l = r * COLS + i;
         long row_in_mx = l / (s / NUM_NODES) - 1;
         if (row_in_mx < 0) {
@@ -610,6 +639,9 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
     int err;
     void* status;
     for (int i = 0; i < n_threads; i++) {
+      if (main_thread == pthreads[i].thread) {
+        printf("one of the worker threads is main thread !!!\n\n\n");
+      }
       err = pthread_join(pthreads[i].thread, &status);
       if (err) {
         printf("error, return code from pthread_join() is %d\n", *(int*)status);
@@ -631,78 +663,25 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
       topology_inverse.insert(make_pair(node, cpus_on_node));
     }
   }
-
 #+END_SRC
 
 *** Execution record
-=./bin/parallel_memory_access 100000 100000 0= for with numa awareness
-=./bin/parallel_memory_access 100000 100000 1= for without numa awareness
+**** Fix main thread executing on CPU 0, use 
+./bin/matrix_multiplication 12800 12800
+***** Use C++ nanoseconds to measure
+| id | WITH access | WITH multiplication | WITHOUT access | WITHOUT multiplication |
+|  1 |   166326074 |          1510417312 |     1301943431 |            12556594665 |
+|  2 |   166366766 |          1510256587 |     1302406072 |            12558704630 |
+|  3 |   166237962 |          1508920121 |     1302070425 |            12558016977 |
+|  4 |   166215395 |          1509373984 |     1299333226 |            12556759414 |
 
-|   id |        with |     without |
-|    1 |  1123583304 |  1196886063 |
-|    2 |  1027846365 |  1213154223 |
-|    3 |   961966382 |  1197822674 |
-|    4 |  1001347748 |  1190312127 |
-| mean | 1028685900. | 1199543800. |
-#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+***** Use tick() to measure
+| id | WITH access | WITH multiplication | WITHOUT access | WITHOUT multiplication |
+|  1 |   350128990 |          3492185360 |     2753145226 |            28683960961 |
+|  2 |   349595320 |          3495013569 |     2749643354 |            28687094593 |
+|  3 |   349548272 |          3494935935 |     2751425583 |            28685699069 |
+|  4 |   349219292 |          3493437642 |     2751906677 |            28688361121 |
 
-- result with matrix time vector
-  #+BEGIN_SRC sh
-    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 128000 128000 1
-    WITH numa
-    s = 16384000000
-    allocate 128000 by 128000 matrix
-    parallel access matrix, use: 2681891576ns
-
-    parallel multiplication, use: 23441440153ns
-    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 128000 128000 0
-    WITHOUT numa configuration
-    s = 16384000000
-    allocate 128000 by 128000 matrix
-    parallel access matrix, use: 2843614110ns
-
-    parallel multiplication, use: 23304168441ns
-    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 1
-    WITH numa
-    s = 40000000000
-    allocate 200000 by 200000 matrix
-    parallel access matrix, use: 6593969799ns
-
-    parallel multiplication, use: 58298070880ns
-    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 0
-    WITHOUT numa configuration
-    s = 40000000000
-    allocate 200000 by 200000 matrix
-    parallel access matrix, use: 6545678079ns
-
-    parallel multiplication, use: 58185872610ns
-    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 1
-    WITH numa
-    s = 40000000000
-    allocate 200000 by 200000 matrix
-    parallel access matrix, use: 6576542917ns
-
-    parallel multiplication, use: 58374621968ns
-    wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 200000 200000 0
-    WITHOUT numa configuration
-    s = 40000000000
-    allocate 200000 by 200000 matrix
-    parallel access matrix, use: 6849083205ns
-
-    parallel multiplication, use: 58467123391ns
-  #+END_SRC
-
-- time measurement with PMC
-  size = 128000 * 128000  and 200000 * 200000  
-  | id                                 |             1 |             2 |             3 |             4 |
-  | access with NUMA in PMC            |    5866552998 |    5609193649 |   15030122505 |   13276063893 |
-  | access with NUMA                   |  2550633016ns |  2438739966ns |  6534770741ns |  5772144665ns |
-  | multiplication with NUMA in PMC    |   53725628910 |   53966388707 |  133871754025 |  173081438682 |
-  | multiplication with NUMA           | 23358808022ns | 23463484569ns | 58204727318ns | 75252300364ns |
-  | access without NUMA in PMC         |    5448400375 |    5395319446 |   12840327576 |   12799387211 |
-  | access wihout NUMA                 |  2368826995ns |  2345749596ns |  5582692694ns |  5564883155ns |
-  | multiplication without NUMA in PMC |   53763292569 |   53476715266 |  133370890684 |  134135194494 |
-  | multiplication without NUMA        | 23375182822ns | 23250584307ns | 57986960759ns | 58319263048ns |
 
 
 * Performance boost using OpenMP
