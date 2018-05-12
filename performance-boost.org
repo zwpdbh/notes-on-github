@@ -359,14 +359,20 @@ It is clear to see the effect of remote access is slower.
   void* normal_alloc_fn(void* arg);
   void* normal_access_fn(void* arg);
   void* normal_multiply_fn(void* arg);
+  void* alloc_fn(void* arg);
+  void* access_fn(void* arg);
+  void* multiply_fn(void* arg);
   void check_mx();
   void check_w();
   void construct_barrier(pInfo* pthreads, int n_threads);
   void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
+  void migrate_to_node(int node_index);
+
 
   int main(int argc, char* argv[]) {
     if (argc != 4) {
       printf("usage: ./bin/matrix_multiplication <rows> <cols> <with_numa>, exit...\n");
+      printf("choose between -1, 0, 1, 2\n");
       exit(-1);
     }
     
@@ -379,11 +385,7 @@ It is clear to see the effect of remote access is slower.
     ROWS = atol(argv[1]);
     COLS = atol(argv[2]);
     with_numa = atoi(argv[3]);
-    if (with_numa) {
-      printf("WITH numa\n");
-    } else {
-      printf("WITHOUT numa configuration\n");
-    }
+
     s = ROWS * COLS;
     printf("s = %ld\n", s);
     initMap(topology, topology_inverse);
@@ -397,6 +399,7 @@ It is clear to see the effect of remote access is slower.
     printf("fix main_thread: %lu on cpu0\n", main_thread);
     
     if (with_numa == -1) {
+      printf("===Allocate mx with %ld * %ld, WITHOUT NUMA awareness:\n", ROWS, COLS);
       mx = (float**)emalloc(sizeof(float*) * ROWS);
       pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
       int err = 0;
@@ -462,7 +465,6 @@ It is clear to see the effect of remote access is slower.
         }
       }
       construct_barrier(pthreads, NUM_THREADS);
-      printf("===after parallel multiplication===\n");
       end = tick();
       printf("normal parallel multiplication use: %lld\n", end - start);
 
@@ -474,16 +476,104 @@ It is clear to see the effect of remote access is slower.
       free(v);
       free(w);
       exit(0);
+    } else if (with_numa == 2) {
+      printf("===Allocate mx with %ld * %ld, WITH NUMA awareness:\n", ROWS, COLS);
+      mx = (float**)emalloc(sizeof(float*) * ROWS);
+      pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
+      int err = 0;
+      printf("allocate %ld by %ld matrix\n", ROWS, COLS);
+      for (int i = 0; i < NUM_THREADS; i++) {
+        pthreads[i].thread_id = i;
+        pthreads[i].job_size = ROWS / NUM_THREADS;
+        pthreads[i].from = i * (ROWS / NUM_THREADS);
+        if (pthreads[i].thread_id == NUM_THREADS -1) {
+          pthreads[i].job_size += (ROWS % NUM_THREADS);
+        }
+        err = pthread_create(&pthreads[i].thread, NULL, alloc_fn, (void *)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit..\n");
+          exit(-1);
+        }
+      }
+      construct_barrier(pthreads, NUM_THREADS);
       
-    } else {
+      auto start = tick();
+      for (int i = 0; i < NUM_THREADS; i++) {
+        pthreads[i].thread_id = i;
+        pthreads[i].job_size = ROWS / NUM_THREADS;
+        pthreads[i].from = i * (ROWS / NUM_THREADS);
+        if (pthreads[i].thread_id == NUM_THREADS - 1) {
+          pthreads[i].job_size += (ROWS % NUM_THREADS);
+        }
+        err = pthread_create(&pthreads[i].thread, NULL, access_fn, (void*)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit...\n");
+          exit(-1);
+        }
+      }
+      construct_barrier(pthreads, NUM_THREADS);
+      auto end = tick();
+      printf("parallel access matrix with shape ROWS * COLS, use: %lld\n", end - start);
+      
+      v = (float*)emalloc(sizeof(float) * COLS);
+      w = (float*)emalloc(sizeof(float) * ROWS);
+      
+      for (int i = 0; i < COLS; i++) {
+        v[i] = 1;
+      }
+      for (int i = 0; i < ROWS; i++) {
+        w[i] = 0;
+      }
 
+      start = tick();
+      for (int i = 0; i < NUM_THREADS; i++) {
+        if (ROWS / NUM_THREADS == 0) {
+          pthreads[i].from = i * 1;
+          pthreads[i].job_size = 1;
+        } else {
+          pthreads[i].from  = i * (ROWS / NUM_THREADS);
+          pthreads[i].job_size = ROWS / NUM_THREADS;
+        }
+
+        if (i == NUM_THREADS - 1) {
+          pthreads[i].job_size += (ROWS % NUM_THREADS);
+        }
+        err = pthread_create(&pthreads[i].thread, NULL, multiply_fn, (void*)&pthreads[i]);
+        if (err != 0) {
+          printf("error during thread creation, exit...\n");
+          exit(-1);
+        }
+      }
+
+      construct_barrier(pthreads, NUM_THREADS);
+      end = tick();
+      printf("parallel multiplication with matrix shape ROWS * COLS, use: %lld\n", end - start);
+
+      int cpu_num = sched_getcpu();
+      if (cpu_num) {
+        printf("main thread is not fixed on cpu0 \n");
+      }
+
+      for (long i = 0; i < ROWS; i++) {
+        numa_free(mx[i], sizeof(float) * COLS);
+      }
+      free(mx);
+      free(pthreads);
+      free(v);
+      free(w);
+      exit(0);
+    } else {
       mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
 
       pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_NODES);
       pthread_t* thread; // array of pthread_t, for catching each created thread
       int err = 0;
-
-      printf("allocate %ld by %ld matrix\n", ROWS, COLS);
+      printf("===Allocate mx with %d * %ld, ", NUM_NODES, s / NUM_NODES);
+      if (with_numa) {
+        printf("WITH NUMA awareness\n");
+      } else {
+        printf("WITHOUT NUMA awareness\n");
+      }
       /**Allocate m by n matrix with the shape NUM_NODES * some right size*/
       for (int i = 0; i < NUM_NODES; i++) {
         pthreads[i].thread_id = i;
@@ -636,16 +726,9 @@ It is clear to see the effect of remote access is slower.
     int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
     if(with_numa && node_index != current_on_node) {
       //    printf("thread_id = %d, on cpu %d, on node %d, should be on node%d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node, node_index);
-      cpu_set_t cpuset;
-      CPU_ZERO(&cpuset);
-      vector<int> cpus = topology_inverse[node_index];
-      for (int i = 0; i < cpus.size(); i++) {
-        CPU_SET(cpus[i], &cpuset);
-      }
-      pthread_t tid = pthread_self();
-      pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
-      sched_cpu = sched_getcpu();
-      current_on_node = topology[sched_cpu];
+      migrate_to_node(node_index);
+      //    sched_cpu = sched_getcpu();
+      //    current_on_node = topology[sched_cpu];
       //    printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
     }
     //  printf("id: %d, thread: %lu, is accessing on cpu: %d, on node: %d\n", info.thread_id, info.thread, sched_cpu, current_on_node);
@@ -664,17 +747,7 @@ It is clear to see the effect of remote access is slower.
     int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
     if(with_numa && node_index != current_on_node) {
       //printf("thread_id = %d, on cpu %d, on node %d, should be on node%d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node, node_index);
-      cpu_set_t cpuset;
-      CPU_ZERO(&cpuset);
-      vector<int> cpus = topology_inverse[node_index];
-      for (int i = 0; i < cpus.size(); i++) {
-        CPU_SET(cpus[i], &cpuset);
-      }
-      pthread_t tid = pthread_self();
-      pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
-      sched_cpu = sched_getcpu();
-      current_on_node = topology[sched_cpu];
-      //printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
+      migrate_to_node(node_index);
     }
     //  printf("id: %d, thread: %lu, is doing multiplication from cpu %d, on node %d\n", info.thread_id, info.thread, sched_cpu, current_on_node);
     for (long r = info.from; r < info.from  + info.job_size; ++r) {
@@ -779,6 +852,71 @@ It is clear to see the effect of remote access is slower.
       }
     }
   }
+
+  void* alloc_fn(void* arg) {
+    pInfo info = *(pInfo *)arg;
+    int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
+    
+    for (long k = info.from; k < info.from + info.job_size; k++) {
+      mx[k] = (float*)numa_alloc_onnode(sizeof(float) * COLS, node_index);
+      for (long j = 0; j < COLS; j++){
+        mx[k][j] = 0;
+      }
+    }
+  }
+
+
+  void* access_fn(void* arg) {
+    pInfo info = *(pInfo*)arg;
+    
+    int sched_cpu = sched_getcpu();
+    int current_on_node = topology[sched_cpu];
+    int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
+    if(with_numa && node_index != current_on_node) {
+      migrate_to_node(node_index);
+    }
+
+    for (long k = info.from; k < info.from + info.job_size; k++) {
+      for (long j = 0; j < COLS; j++) {
+        mx[k][j] = 3;
+      }
+    }
+  }
+
+  void* multiply_fn(void* arg) {
+    pInfo info = *(pInfo*)arg;
+
+    int sched_cpu = sched_getcpu();
+    int current_on_node = topology[sched_cpu];
+    
+    int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
+
+    if(with_numa && node_index != current_on_node) {
+      migrate_to_node(node_index);
+    }
+
+    for (long k = info.from; k < info.from + info.job_size; k++) {
+      for (long j = 0; j < COLS; j++) {
+        w[k] += (mx[k][j] * v[j]);
+      }
+    }
+  }
+
+
+  void migrate_to_node(int node_index) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    vector<int> cpus = topology_inverse[node_index];
+    for (int i = 0; i < cpus.size(); i++) {
+      CPU_SET(cpus[i], &cpuset);
+    }
+    pthread_t tid = pthread_self();
+    pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+    //  int sched_cpu = sched_getcpu();
+    //  int current_on_node = topology[sched_cpu];
+    //  printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
+  }
+
 #+END_SRC
 
 *** Execution record
