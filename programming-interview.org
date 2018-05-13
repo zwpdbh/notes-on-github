@@ -1,16 +1,5 @@
-* Operating system concepts
-** common questions
-1) Explain the following terms: virtual memory, page fault, thrashing.
-2) What is a Branch Target buffer? Explain how it can be used in reducing bubble cycles in case of branch misprediction.
-3) Describe direct memory access (DMA). Can a user level buffer / pointer be used by kernel or drivers?
-   - Related to Accessing Disks in chapter 6, see figure 6.12
-   - DMA is a process happend during the states of a CPU reads/writes data from/to a disk. This process, whereby a device performs a read or write bus transaction on its own, without any involvement of the CPU, is know as direct memory access (DMA).
-   - The 3 stage of CPU read a data from disk:
-     1) The CPU initialize a disk read by writing a command, logical block number, and the destination memory address to the memory mapped address associated with the disk.
-     2) The disk controller reads the sector and performs a DMA transfer into main memory.
-     3) When DMA transfer is complete, the disk controller notifies the CPU with an interrupt.
-   - A user level buffer can be used by kernel or drivers.
 
+* Computer Systems A Programmers Perspective
 ** The Memory Hierarchy
 *** Storage Technologies
 *** Locality
@@ -238,6 +227,8 @@ C provides a form of user-level exceptional control flow, called a nonlocal jump
 ** Virtual Memory
 *** 9.9 Dynamic memory allocation
 
+
+
 * Understanding the Linux Kernel
 ** Chapter 02 Memory Addressing
 *** Memory Addresses
@@ -245,23 +236,58 @@ C provides a form of user-level exceptional control flow, called a nonlocal jump
 *** Segmentation in Hardware
 - real mode, and protected mode. The following focus on translation when protected mode is enabled.
 ****  Segment Selector and Segmentation Registers
-- logical address
+- logical address consists of two parts: a segment identifier and an offset that specifies the relative address within the segment.
   |-------------------------+---------------|
   | 16-bit segment selector | 32-bit offset |
   |-------------------------+---------------|
 
-- segment selector
+  - To retrieve segment selector fast, there are segmentation registers whose only purpose is to hold Segment Selectors. a program can reuse the same segmentation register for different purposes by saving its content in memory and then restoring it later.
+    - cs, code segment register, point to a segment containing program instructions. Also include a 2-bit field that sepcifies the CPL(current privilege level).
+    - ss, stack segment register, point to a segment containing current program stack.
+    - ds, data segment register, point to a segment containing global and static data.
+    - es
+    - fs
+    - gs
+
+- segment selector format
 |--------+---------------------+--------------------------------|
 | 15 ~ 3 |                   2 | 1 ~ 0                          |
 |--------+---------------------+--------------------------------|
 | Index  | TI(table indicator) | RPL(requestor privilege level) |
 |--------+---------------------+--------------------------------|
 
-  
+**** Segment Descriptor
+- Each segment is represented by an 8-byte Segment Descriptor which describe the segment characteristics.
+- They are stored either in the GDT(Global Descriptor Table) or in LDT(Local Descriptor Table)
+- There are several types of segments, and thus several types of Segment Descriptors.
+
+**** Segmentation Unit 
+- logical address ==> 3 steps ==> linear address
+
+
+*** Segmentation in Linux
+**** The Linux GDT
+**** The Linux LDTs
+*** Paging in Hardware
+*** Paging in Linux
+
+
 
 * Coding Interview
+** Common Questions
+1) Explain the following terms: virtual memory, page fault, thrashing.
+2) What is a Branch Target buffer? Explain how it can be used in reducing bubble cycles in case of branch misprediction.
+3) Describe direct memory access (DMA). Can a user level buffer / pointer be used by kernel or drivers?
+   - Related to Accessing Disks in chapter 6, see figure 6.12
+   - DMA is a process happend during the states of a CPU reads/writes data from/to a disk. This process, whereby a device performs a read or write bus transaction on its own, without any involvement of the CPU, is know as direct memory access (DMA).
+   - The 3 stage of CPU read a data from disk:
+     1) The CPU initialize a disk read by writing a command, logical block number, and the destination memory address to the memory mapped address associated with the disk.
+     2) The disk controller reads the sector and performs a DMA transfer into main memory.
+     3) When DMA transfer is complete, the disk controller notifies the CPU with an interrupt.
+   - A user level buffer can be used by kernel or drivers.
+
 ** Low level problem
-1) Write a function called my2DAlloc which allocates a two dimensional array Minimize the number of calls to malloc and make sure that the memory is accessible by the notation =arr[i][j]=
+1 Write a function called my2DAlloc which allocates a two dimensional array Minimize the number of calls to malloc and make sure that the memory is accessible by the notation =arr[i][j]=
    #+BEGIN_SRC C
      int** my2dmalloc(int rows, int cols) {
        int header = rows * sizeof(int*);
@@ -293,8 +319,20 @@ C provides a form of user-level exceptional control flow, called a nonlocal jump
    #+RESULTS:
    | mx[0][1] | = | 2 |
    | mx[0][1] | = | 1 |
+2 Describe the approaches of sharing data between different processes.
+   |-----------------+-------------|
+   | Method          | Description |
+   |-----------------+-------------|
+   | File            |             |
+   | Signal          |             |
+   | Socket          |             |
+   | Message queue   |             |
+   | Pipe            |             |
+   | Shared memory   |             |
+   | Message passing |             |
+   | Virtual Memory  |             |
+   |-----------------+-------------|
 
-   - 
 
 * Appendix
 ** C, C++, D Source Code Blocks in Org Mode

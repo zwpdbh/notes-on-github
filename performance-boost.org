@@ -947,18 +947,246 @@ It is clear to see the effect of remote access is slower.
 | without compare with NUMA |  1945803100 |          4199869000 |                |                        |               |                       |
 |  normal compare with NUMA |  2691729420 |         28946869000 |                |                        |               |                       |
 
+***** comparison between NUMA with different allocation struction
+- Allocate mx with 12800 * 12800, WITH NUMA awareness
+  |   id | access_time | multiplication_time |
+  |    1 |   272672319 |           531647736 |
+  |    2 |   269100843 |           532553171 |
+  |    3 |   270184762 |           532270269 |
+  |    4 |   268955594 |           531988564 |
+  | mean |  270228380. |           532114935 |
+
+#+TBLFM: $2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+
+- Allocate mx with 8 * 20480000, WITH NUMA awareness
+  |   id | access_time | multiplication_time |
+  |    1 |   320727622 |          3476584573 |
+  |    2 |   321024532 |          3472887618 |
+  |    3 |   322771861 |          3473999289 |
+  |    4 |   320801179 |          3473729126 |
+  | mean |  321331300. |         3474300200. |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+
+- Allocate mx with 8 * 20480000, WITHOUT NUMA
+  |   id | access_time | multiplication_time |
+  |    1 |  2546591700 |         28718785908 |
+  |    2 |  2561287436 |         28719224914 |
+  |    3 |  2566636553 |         28717831502 |
+  |    4 |  2553683247 |         28722415729 |
+  | mean |  2557049734 |        28719565000. |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+
+- Allocate mx with 12800 * 12800, WITHOUT NUMA awareness
+  |   id | access_time | multiplication_time |
+  |    1 |  1985376933 |          4197224163 |
+  |    2 |  1986976911 |          4191556113 |
+  |    3 |  1984342423 |          4213631400 |
+  |    4 |  1984112597 |          4193804496 |
+  | mean |  1985202216 |          4199054043 |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+
+*** Summary
+  |                                                        | access_time | multiplication_time |
+  | Allocate mx with 12800 * 12800, WITHOUT NUMA awareness |  1985202216 |          4199054043 |
+  | Allocate mx with 8 * 20480000, WITHOUT NUMA awareness  |  2557049734 |         28719565000 |
+  | Allocate mx with 8 * 20480000, WITH NUMA awareness     |   321331300 |          3474300200 |
+  | Allocate mx with 12800 * 12800, WITH NUMA awareness    |   270228380 |           532114935 |
+  |--------------------------------------------------------+-------------+---------------------|
+
+  - currently, when use NUMA, the not natural way to allocation need carefully allocation of memory, it could be faster, if the code for computing the correct index is more efficient.
 * Performance boost using OpenMP
-** code for Matrix times Vector
-#+BEGIN_SRC c++
+** code using openmp to do matrix time vector
+#+BEGIN_SRC c
   #include <omp.h>
-  #include <iostream>
-  #include <chrono>
+  #include <map>
+  #include <pthread.h>
+  #include <sys/types.h>
+  #include <unistd.h>
+  #include <numa.h>
+  #include <sched.h>
   #include <vector>
 
   using namespace std;
 
+  long ROWS;
+  long COLS;
+  int NUM_THREADS = 64;
+  int NUM_NODES = 8;
+  pthread_t main_thread;
+  int with_numa = 1;
+
+  float** mx = nullptr;
+  float* v = nullptr;
+  float* w = nullptr;
+  long s = 0;
+  map<int, int> topology;
+  map<int, vector<int> > topology_inverse;
+  map<int, int> distribute_record;
+
+  void *emalloc(size_t s);
+  void *remalloc(void *p, size_t s);
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
+  int is_distribute_record_not_consisted(int thread_id, int sched_cpu);
+  void check_w();
+
+  inline uint64_t tick() {
+    uint32_t tmp[2];
+    __asm__ ("rdtsc" : "=a" (tmp[1]), "=d" (tmp[0]) : "c" (0x10) );
+    return (((uint64_t) tmp[0]) << 32) | tmp[1];
+  }
+
+
+  int main(int argc, char* argv[]) {
+    if (argc != 4) {
+      printf("usage: ./bin/xxx <rows> <cols> <1 or 0>, exit...\n");
+      exit(-1);
+    }
+    
+    if(numa_available() == -1) {
+      printf("no libnuma support\n");
+    } else  {
+      numa_set_strict(1);    
+    }
+
+    ROWS = atol(argv[1]);
+    COLS = atol(argv[2]);
+    with_numa = atoi(argv[3]);
+
+    initMap(topology, topology_inverse);
+    
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+    main_thread = pthread_self();
+    pthread_setaffinity_np(main_thread, sizeof(cpu_set_t), &cpuset);
+    printf("fix main_thread: %lu on cpu0\n", main_thread);
+
+    v = (float*)emalloc(sizeof(float) * COLS);
+    w = (float*)emalloc(sizeof(float) * ROWS);
+    mx = (float**)emalloc(sizeof(float*) * ROWS);
+
+    long i = 0;
+    long j = 0;
+
+    for (j = 0; j < COLS; j++) {
+      v[j] = 1;
+    }
+    for (i = 0; i < ROWS; i++) {
+      w[i] = 0;
+    }
+    //  check_w();
+    if (with_numa) {
+      printf("===WITH NUMA:\n");
+      /**allocate mx among different nodes*/
+  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, topology, ROWS, COLS, distribute_record) private(i, j)
+      {
+        int sched_cpu = sched_getcpu();
+        int thread_id = omp_get_thread_num();
+        distribute_record.insert(make_pair(thread_id, topology[sched_cpu]));
+
+  #pragma omp for ordered schedule (static)
+        for(i = 0; i < ROWS; i++) {
+          sched_cpu = sched_getcpu();
+          int node_index = topology[sched_cpu];
+          mx[i] = (float*)numa_alloc_onnode(sizeof(float) * COLS, node_index);
+        }
+      }
+
+      /**measure access time*/
+      auto start = tick();
+  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx,topology, ROWS, COLS, distribute_record) private(i,j)
+      {
+        int sched_cpu = sched_getcpu();
+        int thread_id = omp_get_thread_num();
+        is_distribute_record_not_consisted(thread_id, sched_cpu);
+
+  #pragma omp for schedule (static)
+        for (i = 0; i < ROWS; i++) {
+          for (j = 0; j < COLS; j++) {
+            mx[i][j] = 3;
+          }
+        }
+      }
+      auto end = tick();
+      printf("parallel access use: %lld\n", end - start);
+
+
+      /**measure multiplication time*/
+      start = tick();
+  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, v, w, topology, ROWS, COLS, distribute_record) private(i, j)
+      {
+        int sched_cpu = sched_getcpu();
+        int thread_id = omp_get_thread_num();
+        //    is_distribute_record_not_consisted(thread_id, sched_cpu);
+
+  #pragma omp for schedule (static)
+        for (i = 0; i < ROWS; i++) {
+          for(j = 0; j < COLS; j++) {
+            w[i] += (mx[i][j] * v[j]);
+          }
+        }
+      }
+      end = tick();
+      printf("parallel matrix multiplication use: %lld\n", end - start);
+
+      for(i = 0; i < ROWS; i++) {
+        numa_free(mx[i], sizeof(float) * COLS);
+      }
+      free(mx);
+      free(v);
+      free(w);
+
+      exit(0);
+    } else {
+      printf("===WITHOUT NUMA:\n");
+  #pragma omp parallel for num_threads(NUM_THREADS) default(none) shared(mx, ROWS, COLS) private(i, j)
+      for (i = 0; i < ROWS; i++) {
+        mx[i] = (float*)emalloc(sizeof(float) * COLS);
+      }
+
+      auto start = tick();
+  #pragma omp parallel for num_threads(NUM_THREADS) default(none) shared(mx, ROWS, COLS) private(i, j)
+      for (i = 0; i < ROWS; i++) {
+        for (j = 0; j < COLS; j++) {
+          mx[i][j] = 3;
+        }
+      }
+      auto end = tick();
+      printf("parallel access use: %lld\n", end - start);
+
+      start = tick();
+  #pragma omp parallel for num_threads(NUM_THREADS) default(none) shared(mx, v, w, ROWS, COLS) private(i, j)
+      for (i = 0; i < ROWS; i++) {
+        for (j = 0; j < COLS; j++) {
+          w[i] += (mx[i][j] * v[j]);
+        }
+      }
+      end = tick();
+      printf("parallel matrix multiplication use: %lld\n", end - start);
+
+      for(i = 0; i < ROWS; i++) {
+        free(mx[i]);
+      }
+      free(mx);
+      free(v);
+      free(w);
+      exit(0);
+    }
+  }
+
+
+
   void *emalloc(size_t s) {
     void *result = malloc(s);
+    if (result == nullptr) {
+      fprintf(stderr, "memory allocation failed");
+      exit(EXIT_FAILURE);
+    }
+    return result;
+  }
+
+  void *remalloc(void *p, size_t s) {
+    void *result = realloc(p, s);
     if (result == NULL) {
       fprintf(stderr, "memory allocation failed");
       exit(EXIT_FAILURE);
@@ -966,178 +1194,170 @@ It is clear to see the effect of remote access is slower.
     return result;
   }
 
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse) {
 
-  int main(int argc, char* argv[]) {
-    if (argc < 3) {
-      cout << "Please specify m n on command line" << endl;
-      exit(-1);
-    }
-    long m, n;
-    
-    m = stol(argv[1]);
-    n = stol(argv[2]);
-    int n_cpu = stoi(argv[3]);
-    
-    
-    float* a = (float*)emalloc(n * sizeof(float));
-    vector<float*> b;
-    float* c = (float*)emalloc(n * sizeof(float));
-    
-    long i, j;
-    
-    auto started = std::chrono::high_resolution_clock::now();
-    
-    float* eachRow;
-    
-    
-    for (i = 0; i < m; i++) {
-      eachRow = (float*)emalloc(n * sizeof(float));
-      for (j = 0; j < n; j++) {
-        eachRow[j] = i;
+    vector<int> index_set = {0, 32, 2, 34, 3, 35, 1, 33};
+    for (int node = 0 ; node < index_set.size(); node++) {
+      vector<int> cpus_on_node;
+      for (int cpu = index_set[node]; cpu < index_set[node] + 32; cpu+=4) {
+        //      printf("make pair: %d <=> %d\n", node, cpu);
+        topology.insert(make_pair(cpu, node));
+        cpus_on_node.push_back(cpu);
       }
-      b.push_back(eachRow);
+      topology_inverse.insert(make_pair(node, cpus_on_node));
     }
-    
-    
-  #pragma omp parallel default(none) shared(c, n) private(i)
-    {
-  #pragma omp for
-      for (i = 0; i < n; i++) {
-        c[i] = 2.0;
-      }
+  }
+
+  void check_w() {
+    printf("w = \n");
+    for (long k = 0; k < ROWS; k++) {
+      printf("%.f ", w[k]);
     }
-    
-  #pragma omp parallel default(none) shared(a,b,c,m,n) private(i, j) 
-    {
-      
-  #pragma omp for
-      for (i = 0; i < m; i++) {
-        a[i] = 0.0;
-        //    cout << "Thread " << omp_get_thread_num() << " is executing" << endl;
-        for (j = 0; j < n; j++) {
-          a[i] += (b[i][j] * c[j]);
-        }
-      }  
+    printf("\n");
+  }
+
+
+  int is_distribute_record_not_consisted(int thread_id, int sched_cpu) {
+    if (distribute_record.find(thread_id)->second != topology[sched_cpu]) {
+      //    printf("previous record: thread_%d <=> node_%d\n", thread_id, distribute_record.find(thread_id)->second);
+      //    printf("current record: thread_%d <=> node_%d\n", thread_id, topology[sched_cpu]);
+      return -1;
     }
-    
-    for (i = 0; i < m; i++) {
-      free(b[i]);
-    }
-    
-    
-    free(c);
-    free(a);
-    
-    auto done = std::chrono::high_resolution_clock::now();
-    std::cout << "From initialization to finished, use: " << std::chrono::duration_cast<std::chrono::milliseconds>(done-started).count() << "ms" << endl;
     
     return 0;
   }
+
 #+END_SRC
-** executing result comparing between using OpenMP and without using OpenMP
-- The time of executeing the program with OpenMP suppport is roughly half of the time of executing the program without OpenMP.
-  Serial code execution records:
+** problem of using openmp
+- To use OpenMP to allocate and access matrix element locally, I need to ensure the openmp execute each thread consistedly during allocation and accessing. But it does not do so. If I use ordered clause to make it so, it becomes serial execution which is no point to use OpenMP
+- execution result
   #+BEGIN_SRC sh
-    wzhao@r815:~/numa-knn$ ./bin/no_openmp_with_numa 10000 10000
-    From initialization to finished, use: 2655ms
-    wzhao@r815:~/numa-knn$ ./bin/no_openmp_with_numa 10000 10000
-    From initialization to finished, use: 2384ms
-    wzhao@r815:~/numa-knn$ ./bin/no_openmp_with_numa 10000 10000
-    From initialization to finished, use: 2589ms
+    wzhao@r815:~/numa-knn$ ./bin/openmp_matrix_multiplication 64 64
+    fix main_thread: 140012401936320 on cpu0
+    previous record: thread_53 <=> node_0
+    previous record: thread_22 <=> node_0
+    previous record: thread_40 <=> node_0
+    previous record: thread_15 <=> node_0
+    previous record: thread_23 <=> node_0
+    previous record: thread_13 <=> node_0
+    previous record: thread_59 <=> node_0
+    previous record: thread_24 <=> node_0
+    current record: thread_24 <=> node_3
+    previous record: thread_43 <=> node_0
+    current record: thread_43 <=> node_5
+    previous record: thread_10 <=> node_0
+    current record: thread_10 <=> node_1
+    previous record: thread_33 <=> node_0
+    current record: thread_33 <=> node_4
+    previous record: thread_29 <=> node_0
+    current record: thread_29 <=> node_3
+    previous record: thread_48 <=> node_0
+    current record: thread_48 <=> node_6
+    previous record: thread_28 <=> node_0
+    current record: thread_28 <=> node_3
+    previous record: thread_47 <=> node_0
+    current record: thread_47 <=> node_5
+    previous record: thread_16 <=> node_0
+    current record: thread_16 <=> node_2
+    previous record: thread_11 <=> node_0
+    current record: thread_11 <=> node_1
+    previous record: thread_31 <=> node_0
+    previous record: thread_34 <=> node_0
+    current record: thread_34 <=> node_4
+    previous record: thread_55 <=> node_0
+    current record: thread_55 <=> node_6
+    previous record: thread_41 <=> node_0
+    current record: thread_41 <=> node_5
+    previous record: thread_20 <=> node_0
+    current record: thread_20 <=> node_2
+    previous record: thread_51 <=> node_0
+    current record: thread_51 <=> node_6
+    previous record: thread_18 <=> node_0
+    current record: thread_18 <=> node_2
+    previous record: thread_17 <=> node_0
+    current record: thread_17 <=> node_2
+    previous record: thread_32 <=> node_0
+    current record: thread_32 <=> node_4
+    previous record: thread_44 <=> node_0
+    current record: thread_44 <=> node_5
+    previous record: thread_56 <=> node_0
+    current record: thread_56 <=> node_7
+    previous record: thread_49 <=> node_0
+    current record: thread_49 <=> node_6
+    previous record: thread_63 <=> node_0
+    current record: thread_63 <=> node_7
+    previous record: thread_54 <=> node_0
+    current record: thread_54 <=> node_6
+    previous record: thread_61 <=> node_0
+    current record: thread_61 <=> node_7
+    previous record: thread_26 <=> node_0
+    current record: thread_26 <=> node_3
+    previous record: thread_42 <=> node_0
+    current record: thread_42 <=> node_5
+    current record: thread_53 <=> node_6
+    previous record: thread_57 <=> node_0
+    current record: thread_57 <=> node_7
+    previous record: thread_9 <=> node_0
+    current record: thread_9 <=> node_1
+    previous record: thread_52 <=> node_0
+    current record: thread_52 <=> node_6
+    previous record: thread_50 <=> node_0
+    current record: thread_50 <=> node_6
+    previous record: thread_46 <=> node_0
+    current record: thread_46 <=> node_5
+    current record: thread_22 <=> node_2
+    previous record: thread_35 <=> node_0
+    current record: thread_35 <=> node_4
+    previous record: thread_36 <=> node_0
+    current record: thread_36 <=> node_4
+    previous record: thread_25 <=> node_0
+    current record: thread_25 <=> node_3
+    previous record: thread_38 <=> node_0
+    current record: thread_38 <=> node_4
+    previous record: thread_37 <=> node_0
+    current record: thread_37 <=> node_4
+    current record: thread_40 <=> node_5
+    previous record: thread_58 <=> node_0
+    current record: thread_58 <=> node_7
+    previous record: thread_62 <=> node_0
+    current record: thread_62 <=> node_7
+    current record: thread_15 <=> node_1
+    previous record: thread_12 <=> node_0
+    current record: thread_12 <=> node_1
+    current record: thread_23 <=> node_2
+    previous record: thread_45 <=> node_0
+    current record: thread_45 <=> node_5
+    current record: thread_13 <=> node_1
+    current record: thread_59 <=> node_7
+    previous record: thread_19 <=> node_0
+    current record: thread_19 <=> node_2
+    previous record: thread_30 <=> node_0
+    current record: thread_30 <=> node_3
+    previous record: thread_27 <=> node_0
+    current record: thread_27 <=> node_3
+    previous record: thread_21 <=> node_0
+    current record: thread_21 <=> node_2
+    current record: thread_31 <=> node_3
+    previous record: thread_60 <=> node_0
+    current record: thread_60 <=> node_7
+    previous record: thread_39 <=> node_0
+    current record: thread_39 <=> node_4
+    previous record: thread_14 <=> node_0
+    current record: thread_14 <=> node_1
+    parallel access use: 107051367
+    parallel matrix multiplication use: 17470602
   #+END_SRC
-
-  Simple parallel version execution time
-  #+BEGIN_SRC sh
-    wzhao@r815:~/numa-knn$ ./bin/openmp_with_numa 10000 10000
-    From initialization to finished, use: 1436ms
-    wzhao@r815:~/numa-knn$ ./bin/openmp_with_numa 10000 10000
-    From initialization to finished, use: 1289ms
-    wzhao@r815:~/numa-knn$ ./bin/openmp_with_numa 10000 10000
-    From initialization to finished, use: 1278ms
-  #+END_SRC
-
-- use =/usr/bin/time= to examine the detail of execution on both version
-  - for using OpenMP
-    #+BEGIN_SRC sh
-      wzhao@r815:~/numa-knn$ /usr/bin/time -v ./bin/openmp_with_numa 10000 10000
-      From initialization to finished, use: 1246ms
-      Command being timed: "./bin/openmp_with_numa 10000 10000"
-      User time (seconds): 4.41
-      System time (seconds): 0.76
-      Percent of CPU this job got: 399%
-      Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.29
-      Average shared text size (kbytes): 0
-      Average unshared data size (kbytes): 0
-      Average stack size (kbytes): 0
-      Average total size (kbytes): 0
-      Maximum resident set size (kbytes): 1570640
-      Average resident set size (kbytes): 0
-      Major (requiring I/O) page faults: 0
-      Minor (reclaiming a frame) page faults: 98332
-      Voluntary context switches: 119
-      Involuntary context switches: 623
-      Swaps: 0
-      File system inputs: 0
-      File system outputs: 0
-      Socket messages sent: 0
-      Socket messages received: 0
-      Signals delivered: 0
-      Page size (bytes): 4096
-      Exit status: 0
-
-    #+END_SRC
-
-  - for not using OpenMP
-    #+BEGIN_SRC sh
-      wzhao@r815:~/numa-knn$ /usr/bin/time -v ./bin/no_openmp_with_numa 10000 10000
-      From initialization to finished, use: 2592ms
-      Command being timed: "./bin/no_openmp_with_numa 10000 10000"
-      User time (seconds): 2.38
-      System time (seconds): 0.24
-      Percent of CPU this job got: 99%
-      Elapsed (wall clock) time (h:mm:ss or m:ss): 0:02.63
-      Average shared text size (kbytes): 0
-      Average unshared data size (kbytes): 0
-      Average stack size (kbytes): 0
-      Average total size (kbytes): 0
-      Maximum resident set size (kbytes): 1568208
-      Average resident set size (kbytes): 0
-      Major (requiring I/O) page faults: 0
-      Minor (reclaiming a frame) page faults: 98110
-      Voluntary context switches: 2
-      Involuntary context switches: 264
-      Swaps: 0
-      File system inputs: 0
-      File system outputs: 0
-      Socket messages sent: 0
-      Socket messages received: 0
-      Signals delivered: 0
-      Page size (bytes): 4096
-      Exit status: 0
-    #+END_SRC
-
-** The result is not very impressive, further investigation.
-- When I use set number of threads to 32, it is better than setting it to 64 which is the Maximum number of cpu on the machine.
-
-** Question
-- " From the software point of view, this remote memory can be used in the same way as local memory; it is fully cache coherent." What is cache coherent?
-- The following code could compile but during execution, it produces memory error messages
-  #+BEGIN_SRC c
-    #pragma omp parallel default(none) shared(m, n, b) private(eachRow, i, j)
-      {
-    #pragma omp for
-        for (i = 0; i < m; i++) {
-          eachRow = (float*)emalloc(n * sizeof(float));
-          for (j = 0; j < n; j++) {
-            eachRow[j] = i;
-          }
-          b.push_back(eachRow);
-        }
-      }  
-  #+END_SRC
-- On SMP system, there is a common optimization called cache affinity that is a bit similar. Cache affinity tries to keep data in the cache of a CPU instead of frequently ìbouncingî it between processors. This is commonly done by a scheduler in the operating system, which tries to keep threads on a CPU for some time before scheduling it on another. However, there is an important difference from node affinity: When a thread on an SMP system moves between CPUs, its cache contents eventually move with it. Once a memory area is committed to a specific node on a NUMA system, it stays there. A thread running on a different node that accesses it always adds traffic to the interconnect and leads to higher latency. This is why NUMA systems need to try harder to archive node affinity than SMP systems.
-
-  Why "When a thread on an SMP system moves between CPUs, its cache contents eventually move with it." ? How?
+- Time record
+  |        id |    access | multiplication | without_access | without_multiplication |
+  |         1 | 333679058 |       86703288 |      307299765 |               98623590 |
+  |         2 | 322496449 |       81689395 |      299924519 |               85783732 |
+  |         3 | 346066176 |       81845200 |      319220052 |              100671163 |
+  |         4 | 350297098 |       79371861 |      303946232 |               85174860 |
+  |      mean | 338134700 |       82402436 |      307597642 |               92563336 |
+  |-----------+-----------+----------------+----------------+------------------------|
+  | pthread_1 | 270228380 |      532114935 |                |                        |
+  | pthread_2 | 321331300 |     3474300200 |                |                        |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@6$5=vmean(@2..@5)
 * Troubleshooting
 ** GCC version is 4.8 not enough to support OpenMP 4.0 for proc_bind functionality
 - download gcc7.2 

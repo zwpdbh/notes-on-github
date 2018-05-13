@@ -76,3 +76,7 @@
 * Other people's emacs configuration
 - [[https://github.com/kaushalmodi/.emacs.d/blob/42831e8997f7a3c90bf4bd37ae9f03c48277781d/setup-files/setup-org.el#L413-L584][contains different component]]
 - [[https://github.com/purcell/emacs.d/tree/master/lisp][many useful lisp configuration for emacs]]
+* free-programming-books
+- [[https://github.com/EbookFoundation/free-programming-books/blob/master/free-programming-books.md#c-1][free-programming-books]]
+* About C++ Books
+- [[https://stackoverflow.com/questions/388242/the-definitive-c-book-guide-and-list][The Definitive C++ Book Guide and List]]
