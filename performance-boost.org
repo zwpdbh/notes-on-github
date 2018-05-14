@@ -331,10 +331,8 @@ It is clear to see the effect of remote access is slower.
   map<int, int> topology;
   map<int, vector<int> > topology_inverse;
 
-  long acc_time_from_mx = 0;
-  long acc_time_from_v = 0;
-
   pthread_t main_thread;
+  pthread_barrier_t b;
 
   inline uint64_t tick() {
     uint32_t tmp[2];
@@ -420,9 +418,10 @@ It is clear to see the effect of remote access is slower.
       }
 
       construct_barrier(pthreads, NUM_THREADS);
-
+      
+      pthread_barrier_init(&b, NULL, NUM_THREADS+1);
       /**measure access time*/
-      auto start = tick();
+
       for (int i = 0; i < NUM_THREADS; i++) {
         pthreads[i].thread_id = i;
         pthreads[i].job_size = ROWS / NUM_THREADS;
@@ -436,7 +435,9 @@ It is clear to see the effect of remote access is slower.
           exit(-1);
         }
       }
-        
+      
+      pthread_barrier_wait(&b);
+      auto start = tick();      
       construct_barrier(pthreads, NUM_THREADS);
       auto end = tick();
       printf("normal parallel access matrix, use: %lld\n", end - start);
@@ -450,7 +451,7 @@ It is clear to see the effect of remote access is slower.
         w[i] = 0;
       }
 
-      start = tick();
+      
       for (int i = 0; i < NUM_THREADS; i++) {
         pthreads[i].thread_id = i;
         pthreads[i].job_size = ROWS / NUM_THREADS;
@@ -464,6 +465,8 @@ It is clear to see the effect of remote access is slower.
           exit(-1);
         }
       }
+      pthread_barrier_wait(&b);
+      start = tick();
       construct_barrier(pthreads, NUM_THREADS);
       end = tick();
       printf("normal parallel multiplication use: %lld\n", end - start);
@@ -475,6 +478,7 @@ It is clear to see the effect of remote access is slower.
       free(mx);
       free(v);
       free(w);
+      pthread_barrier_destroy(&b);
       exit(0);
     } else if (with_numa == 2) {
       printf("===Allocate mx with %ld * %ld, WITH NUMA awareness:\n", ROWS, COLS);
@@ -482,6 +486,7 @@ It is clear to see the effect of remote access is slower.
       pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
       int err = 0;
       printf("allocate %ld by %ld matrix\n", ROWS, COLS);
+
       for (int i = 0; i < NUM_THREADS; i++) {
         pthreads[i].thread_id = i;
         pthreads[i].job_size = ROWS / NUM_THREADS;
@@ -497,7 +502,8 @@ It is clear to see the effect of remote access is slower.
       }
       construct_barrier(pthreads, NUM_THREADS);
       
-      auto start = tick();
+
+      pthread_barrier_init(&b, NULL, NUM_THREADS+1);
       for (int i = 0; i < NUM_THREADS; i++) {
         pthreads[i].thread_id = i;
         pthreads[i].job_size = ROWS / NUM_THREADS;
@@ -511,6 +517,8 @@ It is clear to see the effect of remote access is slower.
           exit(-1);
         }
       }
+      pthread_barrier_wait(&b);
+      auto start = tick();
       construct_barrier(pthreads, NUM_THREADS);
       auto end = tick();
       printf("parallel access matrix with shape ROWS * COLS, use: %lld\n", end - start);
@@ -525,7 +533,6 @@ It is clear to see the effect of remote access is slower.
         w[i] = 0;
       }
 
-      start = tick();
       for (int i = 0; i < NUM_THREADS; i++) {
         if (ROWS / NUM_THREADS == 0) {
           pthreads[i].from = i * 1;
@@ -545,6 +552,8 @@ It is clear to see the effect of remote access is slower.
         }
       }
 
+      pthread_barrier_wait(&b);
+      start = tick();
       construct_barrier(pthreads, NUM_THREADS);
       end = tick();
       printf("parallel multiplication with matrix shape ROWS * COLS, use: %lld\n", end - start);
@@ -561,6 +570,7 @@ It is clear to see the effect of remote access is slower.
       free(pthreads);
       free(v);
       free(w);
+      pthread_barrier_destroy(&b);
       exit(0);
     } else {
       mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
@@ -593,9 +603,9 @@ It is clear to see the effect of remote access is slower.
       construct_barrier(pthreads, NUM_NODES);
       //  check_mx();
 
-      auto start = tick();
-      //  auto started = std::chrono::high_resolution_clock::now();
       pthreads =(pInfo*)remalloc(pthreads, sizeof(*pthreads) * NUM_THREADS);
+      
+      pthread_barrier_init(&b, NULL, NUM_THREADS+1);
       for (int i = 0; i < NUM_THREADS; i++) {
         pthreads[i].thread_id = i;
         pthreads[i].row_in_mx = i / (NUM_THREADS / NUM_NODES);
@@ -616,6 +626,8 @@ It is clear to see the effect of remote access is slower.
         }
       }
 
+      pthread_barrier_wait(&b);
+      auto start = tick();
       construct_barrier(pthreads, NUM_THREADS);
       auto end = tick();
       //  auto done = std::chrono::high_resolution_clock::now();
@@ -635,7 +647,7 @@ It is clear to see the effect of remote access is slower.
       }
     
     
-      start = tick();
+
       for (int i = 0; i < NUM_THREADS; i++) {
         if (ROWS / NUM_THREADS == 0) {
           pthreads[i].from = i * 1;
@@ -655,7 +667,8 @@ It is clear to see the effect of remote access is slower.
         }
       }
 
-
+      pthread_barrier_wait(&b);
+      start = tick();
       construct_barrier(pthreads, NUM_THREADS);
       end = tick();
       //  done = std::chrono::high_resolution_clock::now();
@@ -674,7 +687,7 @@ It is clear to see the effect of remote access is slower.
           numa_free(mx[i], (s / NUM_NODES) * sizeof(float));
         }
       }
-
+      pthread_barrier_destroy(&b);
       free(mx);
       free(pthreads);
       free(v);
@@ -731,6 +744,8 @@ It is clear to see the effect of remote access is slower.
       //    current_on_node = topology[sched_cpu];
       //    printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
     }
+
+    pthread_barrier_wait(&b);
     //  printf("id: %d, thread: %lu, is accessing on cpu: %d, on node: %d\n", info.thread_id, info.thread, sched_cpu, current_on_node);
     for (long i = info.from; i < info.from + info.job_size; i++) {
       mx[info.row_in_mx][i] = 3.0;
@@ -749,16 +764,18 @@ It is clear to see the effect of remote access is slower.
       //printf("thread_id = %d, on cpu %d, on node %d, should be on node%d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node, node_index);
       migrate_to_node(node_index);
     }
+    long each_size = s / NUM_NODES;
+    pthread_barrier_wait(&b);
     //  printf("id: %d, thread: %lu, is doing multiplication from cpu %d, on node %d\n", info.thread_id, info.thread, sched_cpu, current_on_node);
     for (long r = info.from; r < info.from  + info.job_size; ++r) {
       // get corresponding mx(i, j)
       for (long i = 0; i < COLS; i++) {
         long l = r * COLS + i;
-        long row_in_mx = l / (s / NUM_NODES) - 1;
+        long row_in_mx = l / each_size - 1;
         if (row_in_mx < 0) {
           row_in_mx = 0;
         }
-        long col_in_mx = l % (s / NUM_NODES);
+        long col_in_mx = l % each_size;
         w[r] += (*(*(mx + row_in_mx) + col_in_mx) * v[i]);
       }
     }
@@ -835,6 +852,7 @@ It is clear to see the effect of remote access is slower.
   void* normal_access_fn(void* arg) {
     pInfo info = *(pInfo*)arg;
 
+    pthread_barrier_wait(&b);
     for (long k = info.from; k < info.from + info.job_size; k++) {
       for (long j = 0; j < COLS; j++) {
         mx[k][j] = 3;
@@ -846,6 +864,7 @@ It is clear to see the effect of remote access is slower.
   void* normal_multiply_fn(void* arg) {
     pInfo info = *(pInfo*)arg;
     //  printf("thread_id = %d, from = %d, to = %d\n", info.thread_id, info.from, info.from + info.job_size);
+    pthread_barrier_wait(&b);
     for (long k = info.from; k < info.from + info.job_size; k++) {
       for (long j = 0; j < COLS; j++) {
         w[k] += (mx[k][j] * v[j]);
@@ -876,11 +895,13 @@ It is clear to see the effect of remote access is slower.
       migrate_to_node(node_index);
     }
 
+    pthread_barrier_wait(&b);
     for (long k = info.from; k < info.from + info.job_size; k++) {
       for (long j = 0; j < COLS; j++) {
         mx[k][j] = 3;
       }
     }
+    return (void *)0;
   }
 
   void* multiply_fn(void* arg) {
@@ -895,11 +916,14 @@ It is clear to see the effect of remote access is slower.
       migrate_to_node(node_index);
     }
 
+    pthread_barrier_wait(&b);  
     for (long k = info.from; k < info.from + info.job_size; k++) {
       for (long j = 0; j < COLS; j++) {
         w[k] += (mx[k][j] * v[j]);
+        //      w[k] += (*(*(mx + k) +j) * v[j]);
       }
     }
+    return (void *)0;
   }
 
 
@@ -916,7 +940,6 @@ It is clear to see the effect of remote access is slower.
     //  int current_on_node = topology[sched_cpu];
     //  printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
   }
-
 #+END_SRC
 
 *** Execution record
@@ -1126,6 +1149,9 @@ It is clear to see the effect of remote access is slower.
           }
         }
       }
+      if (sched_getcpu()) {
+        printf("main thread is not fixed on CPU_01\n");
+      }
       end = tick();
       printf("parallel matrix multiplication use: %lld\n", end - start);
 
@@ -1226,7 +1252,6 @@ It is clear to see the effect of remote access is slower.
     
     return 0;
   }
-
 #+END_SRC
 ** problem of using openmp
 - To use OpenMP to allocate and access matrix element locally, I need to ensure the openmp execute each thread consistedly during allocation and accessing. But it does not do so. If I use ordered clause to make it so, it becomes serial execution which is no point to use OpenMP
@@ -1358,6 +1383,45 @@ It is clear to see the effect of remote access is slower.
   | pthread_1 | 270228380 |      532114935 |                |                        |
   | pthread_2 | 321331300 |     3474300200 |                |                        |
 #+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@6$5=vmean(@2..@5)
+
+*** The result shows the pthread version is slower than the OpenMP version
+**** Why?
+  In OpenMP version, when start tick(), each thread is already executing for mission; whereas in pthread, the pthreads have to first be generated, then set affinity, at last to execute.
+**** Use barrier in pthread to sync ready all threads before execution, plus "-O2" optimization using gcc
+***** ===Allocate mx with 8 * 20480000, WITH NUMA awareness
+|   id |   access | multiplication |
+|    1 | 62395687 |      732743679 |
+|    2 | 62029517 |      730706185 |
+|    3 | 56135640 |      728912121 |
+|    4 | 55443448 |      728838934 |
+| mean | 59001073 |      730300230 |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+
+***** ===Allocate mx with 12800 * 12800, WITH NUMA awareness:
+|   id |    access | multiplication |           |           |
+|    1 | 157397744 |      145636085 | 157066664 | 153113354 |
+|    2 | 154774561 |      152104165 | 158771222 | 152392162 |
+|    3 | 157017712 |      148060454 | 155616274 | 151821547 |
+|    4 | 160361269 |      147043263 |           | 151334586 |
+| mean | 157387820 |      148210990 |           |           |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
+
+***** OpenMP
+| id                   | NUMA access | NUMA multiplication | normal access | nomral multiplication |
+| 1                    |   319359376 |            29531992 |     284028778 |              52116988 |
+| 2                    |   327747868 |            28843710 |     281891648 |              61068810 |
+| 3                    |   325902073 |            23409716 |     275022363 |              30859628 |
+| 4                    |   313434813 |            25942096 |     277625352 |              70001430 |
+| mean                 |   321611030 |            26931879 |     279642040 |              53511714 |
+|----------------------+-------------+---------------------+---------------+-----------------------|
+| 12800 * 12800        |   157387820 |           148210990 |               |                       |
+| 8 * 20480000         |    59001073 |           730300230 |               |                       |
+| pthread_without_NUMA |   442452132 |           950821433 |               |                       |
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@6$5=vmean(@2..@5)
+
+**** The OpenMP still has the fatest multiplication time
+- why
+
 * Troubleshooting
 ** GCC version is 4.8 not enough to support OpenMP 4.0 for proc_bind functionality
 - download gcc7.2 
