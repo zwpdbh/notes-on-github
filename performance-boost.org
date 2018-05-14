@@ -397,6 +397,7 @@ It is clear to see the effect of remote access is slower.
     printf("fix main_thread: %lu on cpu0\n", main_thread);
     
     if (with_numa == -1) {
+      auto started = std::chrono::high_resolution_clock::now();
       printf("===Allocate mx with %ld * %ld, WITHOUT NUMA awareness:\n", ROWS, COLS);
       mx = (float**)emalloc(sizeof(float*) * ROWS);
       pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
@@ -479,8 +480,11 @@ It is clear to see the effect of remote access is slower.
       free(v);
       free(w);
       pthread_barrier_destroy(&b);
+      auto done = std::chrono::high_resolution_clock::now();
+      cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
     } else if (with_numa == 2) {
+      auto started = std::chrono::high_resolution_clock::now();
       printf("===Allocate mx with %ld * %ld, WITH NUMA awareness:\n", ROWS, COLS);
       mx = (float**)emalloc(sizeof(float*) * ROWS);
       pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
@@ -571,8 +575,11 @@ It is clear to see the effect of remote access is slower.
       free(v);
       free(w);
       pthread_barrier_destroy(&b);
+      auto done = std::chrono::high_resolution_clock::now();
+      cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
     } else {
+      auto started = std::chrono::high_resolution_clock::now();
       mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
 
       pInfo* pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_NODES);
@@ -692,6 +699,8 @@ It is clear to see the effect of remote access is slower.
       free(pthreads);
       free(v);
       free(w);
+      auto done = std::chrono::high_resolution_clock::now();
+      cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
     } // end of else
   }
@@ -943,78 +952,55 @@ It is clear to see the effect of remote access is slower.
 #+END_SRC
 
 *** Execution record
-**** Fix main thread executing on CPU 0, use 
-./bin/matrix_multiplication 12800 12800
-***** Use C++ nanoseconds to measure
-| id | WITH access | WITH multiplication | WITHOUT access | WITHOUT multiplication |
-|  1 |   166326074 |          1510417312 |     1301943431 |            12556594665 |
-|  2 |   166366766 |          1510256587 |     1302406072 |            12558704630 |
-|  3 |   166237962 |          1508920121 |     1302070425 |            12558016977 |
-|  4 |   166215395 |          1509373984 |     1299333226 |            12556759414 |
+Fix main thread executing on CPU 0, matrix is 12800 * 12800
+**** Allocate mx with 12800 * 12800, WITHOUT NUMA awareness
+|   id |     access | multiplication | total execution time of program(s) |
+|    1 |  430604149 |      935806714 |                            1.30271 |
+|    2 |  428375815 |      937043212 |                            1.30204 |
+|    3 |  429507786 |      936916666 |                            1.69266 |
+|    4 |  428615820 |      937980358 |                            1.30382 |
+|    5 |  428463239 |      937544182 |                            1.30078 |
+| mean | 429113360. |     937058230. |                           1.380402 |
+#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
 
-***** Use tick() to measure
-| id | WITH access | WITH multiplication | WITHOUT access | WITHOUT multiplication |
-|  1 |   350128990 |          3492185360 |     2753145226 |            28683960961 |
-|  2 |   349595320 |          3495013569 |     2749643354 |            28687094593 |
-|  3 |   349548272 |          3494935935 |     2751425583 |            28685699069 |
-|  4 |   349219292 |          3493437642 |     2751906677 |            28688361121 |
+**** Allocate mx with 8 * 20480000, WITHOUT NUMA awareness
+|   id |     access | multiplication | total execution time of program(s) |
+|    1 |  680044058 |     6681668916 |                            4.02796 |
+|    2 |  682953049 |     6676504701 |                            4.02523 |
+|    3 |  687956195 |     6677806353 |                            4.02215 |
+|    4 |  685070622 |     6677521668 |                            4.01936 |
+|    5 |  684318610 |     6677222508 |                            4.02701 |
+| mean | 684068510. |    6678144800. |                           4.024342 |
+#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
 
-***** compare normal situation with NUMA
-|                        id | WITH access | WITH multiplication | WITHOUT access | WITHOUT multiplication | NORMAL access | NORMAL multiplication |
-|                         1 |   345545088 |          3491522057 |     2691950679 |            28953121579 |    1946171831 |            4201424415 |
-|                         2 |   345787749 |          3490512751 |     2691251738 |            28937151565 |    1945789503 |            4196188061 |
-|                         3 |   345435510 |          3492186245 |     2691130047 |            28946658459 |    1945328493 |            4200917062 |
-|                         4 |   345432426 |          3490595989 |     2692585216 |            28950542474 |    1945922490 |            4200946452 |
-|                      mean |   345550190 |          3491204300 |     2691729420 |            28946869000 |    1945803100 |            4199869000 |
-|---------------------------+-------------+---------------------+----------------+------------------------+---------------+-----------------------|
-| without compare with NUMA |  1945803100 |          4199869000 |                |                        |               |                       |
-|  normal compare with NUMA |  2691729420 |         28946869000 |                |                        |               |                       |
+**** Allocate mx with 8 * 20480000, WITH NUMA awareness
+|   id |   access | multiplication | total execution time of program(s) |
+|    1 | 56052365 |      803617342 |                            1.19494 |
+|    2 | 55887468 |      804099605 |                            1.20406 |
+|    3 | 55422889 |      804668921 |                            1.19966 |
+|    4 | 55422889 |      804668921 |                            1.19966 |
+|    5 | 55915354 |      803988492 |                            1.19751 |
+| mean | 55740193 |     804208660. |                           1.199166 |
+#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
 
-***** comparison between NUMA with different allocation struction
-- Allocate mx with 12800 * 12800, WITH NUMA awareness
-  |   id | access_time | multiplication_time |
-  |    1 |   272672319 |           531647736 |
-  |    2 |   269100843 |           532553171 |
-  |    3 |   270184762 |           532270269 |
-  |    4 |   268955594 |           531988564 |
-  | mean |  270228380. |           532114935 |
-
-#+TBLFM: $2=vmean(@2..@5)::@6$3=vmean(@2..@5)
-
-- Allocate mx with 8 * 20480000, WITH NUMA awareness
-  |   id | access_time | multiplication_time |
-  |    1 |   320727622 |          3476584573 |
-  |    2 |   321024532 |          3472887618 |
-  |    3 |   322771861 |          3473999289 |
-  |    4 |   320801179 |          3473729126 |
-  | mean |  321331300. |         3474300200. |
-#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
-
-- Allocate mx with 8 * 20480000, WITHOUT NUMA
-  |   id | access_time | multiplication_time |
-  |    1 |  2546591700 |         28718785908 |
-  |    2 |  2561287436 |         28719224914 |
-  |    3 |  2566636553 |         28717831502 |
-  |    4 |  2553683247 |         28722415729 |
-  | mean |  2557049734 |        28719565000. |
-#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
-
-- Allocate mx with 12800 * 12800, WITHOUT NUMA awareness
-  |   id | access_time | multiplication_time |
-  |    1 |  1985376933 |          4197224163 |
-  |    2 |  1986976911 |          4191556113 |
-  |    3 |  1984342423 |          4213631400 |
-  |    4 |  1984112597 |          4193804496 |
-  | mean |  1985202216 |          4199054043 |
-#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
-
+**** Allocate mx with 12800 * 12800, WITH NUMA awareness
+|   id |     access | multiplication | total execution time of program |
+|    1 |  162304794 |      153310561 |                         1.01839 |
+|    2 |  162328640 |      148230344 |                         1.01127 |
+|    3 |  162403576 |      153474228 |                         1.01854 |
+|    4 |  161863161 |      154374771 |                         1.01873 |
+|    5 |  161203875 |      153011596 |                         1.01798 |
+| mean | 162020810. |      152480300 |                        1.016982 |
+#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
 *** Summary
-  |                                                        | access_time | multiplication_time |
-  | Allocate mx with 12800 * 12800, WITHOUT NUMA awareness |  1985202216 |          4199054043 |
-  | Allocate mx with 8 * 20480000, WITHOUT NUMA awareness  |  2557049734 |         28719565000 |
-  | Allocate mx with 8 * 20480000, WITH NUMA awareness     |   321331300 |          3474300200 |
-  | Allocate mx with 12800 * 12800, WITH NUMA awareness    |   270228380 |           532114935 |
-  |--------------------------------------------------------+-------------+---------------------|
+  |                                                        | access time | multiplication time | total program execution time (s) |
+  | Allocate mx with 12800 * 12800, WITHOUT NUMA awareness |   429113360 |           937058230 |                         1.380402 |
+  | Allocate mx with 8 * 20480000, WITHOUT NUMA awareness  |   684068510 |          6678144800 |                         4.024342 |
+  | Allocate mx with 8 * 20480000, WITH NUMA awareness     |    55740193 |           804208660 |                         1.199166 |
+  | Allocate mx with 12800 * 12800, WITH NUMA awareness    |   162020810 |           152480300 |                         1.016982 |
+  | OpenMP WITHOUT NUMA                                    |   292468810 |            40073475 |                         3.752714 |
+  | OpenMP WITH NUMA                                       |   322999890 |            28121467 |                         4.717752 |
+  |--------------------------------------------------------+-------------+---------------------+----------------------------------|
 
   - currently, when use NUMA, the not natural way to allocation need carefully allocation of memory, it could be faster, if the code for computing the correct index is more efficient.
 * Performance boost using OpenMP
@@ -1028,6 +1014,9 @@ It is clear to see the effect of remote access is slower.
   #include <numa.h>
   #include <sched.h>
   #include <vector>
+  #include <chrono>
+  #include <stdio.h>
+  #include <iostream>
 
   using namespace std;
 
@@ -1057,7 +1046,6 @@ It is clear to see the effect of remote access is slower.
     __asm__ ("rdtsc" : "=a" (tmp[1]), "=d" (tmp[0]) : "c" (0x10) );
     return (((uint64_t) tmp[0]) << 32) | tmp[1];
   }
-
 
   int main(int argc, char* argv[]) {
     if (argc != 4) {
@@ -1099,6 +1087,7 @@ It is clear to see the effect of remote access is slower.
     }
     //  check_w();
     if (with_numa) {
+      auto started = std::chrono::high_resolution_clock::now();
       printf("===WITH NUMA:\n");
       /**allocate mx among different nodes*/
   #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, topology, ROWS, COLS, distribute_record) private(i, j)
@@ -1161,9 +1150,11 @@ It is clear to see the effect of remote access is slower.
       free(mx);
       free(v);
       free(w);
-
+      auto done = std::chrono::high_resolution_clock::now();
+      cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
     } else {
+      auto started = std::chrono::high_resolution_clock::now();
       printf("===WITHOUT NUMA:\n");
   #pragma omp parallel for num_threads(NUM_THREADS) default(none) shared(mx, ROWS, COLS) private(i, j)
       for (i = 0; i < ROWS; i++) {
@@ -1196,6 +1187,8 @@ It is clear to see the effect of remote access is slower.
       free(mx);
       free(v);
       free(w);
+      auto done = std::chrono::high_resolution_clock::now();
+      cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
     }
   }
@@ -1406,18 +1399,27 @@ It is clear to see the effect of remote access is slower.
 | mean | 157387820 |      148210990 |           |           |
 #+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
 
-***** OpenMP
-| id                   | NUMA access | NUMA multiplication | normal access | nomral multiplication |
-| 1                    |   319359376 |            29531992 |     284028778 |              52116988 |
-| 2                    |   327747868 |            28843710 |     281891648 |              61068810 |
-| 3                    |   325902073 |            23409716 |     275022363 |              30859628 |
-| 4                    |   313434813 |            25942096 |     277625352 |              70001430 |
-| mean                 |   321611030 |            26931879 |     279642040 |              53511714 |
-|----------------------+-------------+---------------------+---------------+-----------------------|
-| 12800 * 12800        |   157387820 |           148210990 |               |                       |
-| 8 * 20480000         |    59001073 |           730300230 |               |                       |
-| pthread_without_NUMA |   442452132 |           950821433 |               |                       |
-#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@6$5=vmean(@2..@5)
+***** OpenMP WITHOUT NUMA
+|   id |     access | multiplication | total execution time of program(s) |
+|    1 |  320158095 |       59331935 |                            3.48299 |
+|    2 |  284337430 |       40079501 |                            3.70962 |
+|    3 |  289169162 |       37238352 |                            3.76046 |
+|    4 |  289169162 |       37238352 |                            3.76046 |
+|    5 |  279510204 |       26479233 |                            4.05004 |
+| mean | 292468810. |      40073475. |                           3.752714 |
+|------+------------+----------------+------------------------------------|
+#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
+
+***** OpenMP WITH NUMA
+|   id |     access | multiplication | total execution time of program(s) |
+|    1 |  310407371 |       26091806 |                            4.70972 |
+|    2 |  339623837 |       31384191 |                            5.03681 |
+|    3 |  331996566 |       26439365 |                            4.61384 |
+|    4 |  309772190 |       27053034 |                            4.94841 |
+|    5 |  323199487 |       29638938 |                            4.27998 |
+| MEAN | 322999890. |      28121467. |                           4.717752 |
+|------+------------+----------------+------------------------------------|
+#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)::@13$2=vmean(@2..@12)::@13$3=vmean(@2..@12)::@13$4=vmean(@2..@12)
 
 **** The OpenMP still has the fatest multiplication time
 - why
