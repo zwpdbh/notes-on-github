@@ -146,21 +146,6 @@
        
     The difference between numa_miss and numa_hit and local_node and foreign_node is that the first two count hit or miss for the NUMA policy. The latter count if the allocation was on the same node as the requesting thread.
 * Use pthread to do the experiment
-To eliminate other errors which could be caused by using OpenMP, I use pthread to do the test. Also, using OpenMP is not every convonient to test different situations since you need to set OpenMP environment and remember to use the correct in different program.
-- also use tick() to measure time
-#+BEGIN_SRC c
-  inline uint64_t tick() {
-    uint32_t tmp[2];
-    __asm__ ("rdtsc" : "=a" (tmp[1]), "=d" (tmp[0]) : "c" (0x10) );
-    return (((uint64_t) tmp[0]) << 32) | tmp[1];
-  }
-
-  start = tick();
-  // do something
-  end = tick();
-  printf("%llu ", end - start);
-
-#+END_SRC
 ** Test serial version of code for memory access time
 *** code to measure access time
 #+BEGIN_SRC c
@@ -287,7 +272,6 @@ To eliminate other errors which could be caused by using OpenMP, I use pthread t
   }
 #+END_SRC
 
-
 *** access time records
 size = 12800
 |   id |      remote |      local |
@@ -305,6 +289,10 @@ It is clear to see the effect of remote access is slower.
 ** Test parallel version of code for memory access and multiplication with vector
 *** code with parallel access and multiplication
 #+BEGIN_SRC c
+  //
+  // Created by zwpdbh on 07/05/2018.
+  //
+
   #include <pthread.h>
   #include <iostream>
   #include <sched.h>
@@ -993,18 +981,20 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
 | mean | 162020810. |      152480300 |                        1.016982 |
 #+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
 *** Summary
+  |--------------------------------------------------------+-------------+---------------------+----------------------------------|
   |                                                        | access time | multiplication time | total program execution time (s) |
   | Allocate mx with 12800 * 12800, WITHOUT NUMA awareness |   429113360 |           937058230 |                         1.380402 |
   | Allocate mx with 8 * 20480000, WITHOUT NUMA awareness  |   684068510 |          6678144800 |                         4.024342 |
   | Allocate mx with 8 * 20480000, WITH NUMA awareness     |    55740193 |           804208660 |                         1.199166 |
   | Allocate mx with 12800 * 12800, WITH NUMA awareness    |   162020810 |           152480300 |                         1.016982 |
-  | OpenMP WITHOUT NUMA                                    |   292468810 |            40073475 |                         3.752714 |
-  | OpenMP WITH NUMA                                       |   322999890 |            28121467 |                         4.717752 |
   |--------------------------------------------------------+-------------+---------------------+----------------------------------|
 
-  - currently, when use NUMA, the not natural way to allocation need carefully allocation of memory, it could be faster, if the code for computing the correct index is more efficient.
+  - Using pthread with NUMA awareness could improve the performance.
+  - Allocate data structure according to NUMA nodes could improve the performance further in some cases. But it is not convonient to use it.
+  - Since, we could just use normal way to allocate data, 
+   
 * Performance boost using OpenMP
-** code using openmp to do matrix time vector
+** Code using openmp to do matrix time vector
 #+BEGIN_SRC c
   #include <omp.h>
   #include <map>
@@ -1033,12 +1023,11 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
   long s = 0;
   map<int, int> topology;
   map<int, vector<int> > topology_inverse;
-  map<int, int> distribute_record;
+  map<int, int> distribute_scheme;
 
   void *emalloc(size_t s);
   void *remalloc(void *p, size_t s);
-  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
-  int is_distribute_record_not_consisted(int thread_id, int sched_cpu);
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse, map<int, int> &distribute_scheme);
   void check_w();
 
   inline uint64_t tick() {
@@ -1059,11 +1048,12 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
       numa_set_strict(1);    
     }
 
+    printf("OMP_PLACES : %s\n", getenv("OMP_PLACES"));
     ROWS = atol(argv[1]);
     COLS = atol(argv[2]);
     with_numa = atoi(argv[3]);
 
-    initMap(topology, topology_inverse);
+    initMap(topology, topology_inverse, distribute_scheme);
     
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -1090,28 +1080,29 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
       auto started = std::chrono::high_resolution_clock::now();
       printf("===WITH NUMA:\n");
       /**allocate mx among different nodes*/
-  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, topology, ROWS, COLS, distribute_record) private(i, j)
+  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, topology, ROWS, COLS, distribute_scheme) private(i, j)
       {
         int sched_cpu = sched_getcpu();
         int thread_id = omp_get_thread_num();
-        distribute_record.insert(make_pair(thread_id, topology[sched_cpu]));
-
+        if (topology[sched_cpu] != distribute_scheme[thread_id]) {
+          printf("During allocation, threads are running wroing\n");
+        }
   #pragma omp for ordered schedule (static)
         for(i = 0; i < ROWS; i++) {
-          sched_cpu = sched_getcpu();
-          int node_index = topology[sched_cpu];
-          mx[i] = (float*)numa_alloc_onnode(sizeof(float) * COLS, node_index);
+          mx[i] = (float*)numa_alloc_onnode(sizeof(float) * COLS, 7);
         }
       }
 
       /**measure access time*/
       auto start = tick();
-  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx,topology, ROWS, COLS, distribute_record) private(i,j)
+      printf("during access:\n");
+  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx,topology, ROWS, COLS, distribute_scheme) private(i,j)
       {
         int sched_cpu = sched_getcpu();
         int thread_id = omp_get_thread_num();
-        is_distribute_record_not_consisted(thread_id, sched_cpu);
-
+        if (topology[sched_cpu] != distribute_scheme[thread_id])  {
+          printf("During access, threads are running wroing\n");
+        }
   #pragma omp for schedule (static)
         for (i = 0; i < ROWS; i++) {
           for (j = 0; j < COLS; j++) {
@@ -1125,12 +1116,14 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
 
       /**measure multiplication time*/
       start = tick();
-  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, v, w, topology, ROWS, COLS, distribute_record) private(i, j)
+      printf("during multiplication:\n");
+  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, v, w, topology, ROWS, COLS, distribute_scheme) private(i, j)
       {
         int sched_cpu = sched_getcpu();
         int thread_id = omp_get_thread_num();
-        //    is_distribute_record_not_consisted(thread_id, sched_cpu);
-
+        if(topology[sched_cpu] != distribute_scheme[thread_id]) {
+          printf("During multiplication, threads are running wrong\n");
+        }
   #pragma omp for schedule (static)
         for (i = 0; i < ROWS; i++) {
           for(j = 0; j < COLS; j++) {
@@ -1154,6 +1147,8 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
       cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
     } else {
+
+
       auto started = std::chrono::high_resolution_clock::now();
       printf("===WITHOUT NUMA:\n");
   #pragma omp parallel for num_threads(NUM_THREADS) default(none) shared(mx, ROWS, COLS) private(i, j)
@@ -1213,8 +1208,8 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
     return result;
   }
 
-  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse) {
-
+  void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse, map<int, int> &distribute_scheme) {
+    int thread_id = 0;
     vector<int> index_set = {0, 32, 2, 34, 3, 35, 1, 33};
     for (int node = 0 ; node < index_set.size(); node++) {
       vector<int> cpus_on_node;
@@ -1222,6 +1217,8 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
         //      printf("make pair: %d <=> %d\n", node, cpu);
         topology.insert(make_pair(cpu, node));
         cpus_on_node.push_back(cpu);
+        distribute_scheme.insert(make_pair(thread_id, node));
+        thread_id += 1;
       }
       topology_inverse.insert(make_pair(node, cpus_on_node));
     }
@@ -1235,195 +1232,148 @@ Fix main thread executing on CPU 0, matrix is 12800 * 12800
     printf("\n");
   }
 
-
-  int is_distribute_record_not_consisted(int thread_id, int sched_cpu) {
-    if (distribute_record.find(thread_id)->second != topology[sched_cpu]) {
-      //    printf("previous record: thread_%d <=> node_%d\n", thread_id, distribute_record.find(thread_id)->second);
-      //    printf("current record: thread_%d <=> node_%d\n", thread_id, topology[sched_cpu]);
-      return -1;
-    }
-    
-    return 0;
-  }
 #+END_SRC
-** problem of using openmp
-- To use OpenMP to allocate and access matrix element locally, I need to ensure the openmp execute each thread consistedly during allocation and accessing. But it does not do so. If I use ordered clause to make it so, it becomes serial execution which is no point to use OpenMP
-- execution result
-  #+BEGIN_SRC sh
-    wzhao@r815:~/numa-knn$ ./bin/openmp_matrix_multiplication 64 64
-    fix main_thread: 140012401936320 on cpu0
-    previous record: thread_53 <=> node_0
-    previous record: thread_22 <=> node_0
-    previous record: thread_40 <=> node_0
-    previous record: thread_15 <=> node_0
-    previous record: thread_23 <=> node_0
-    previous record: thread_13 <=> node_0
-    previous record: thread_59 <=> node_0
-    previous record: thread_24 <=> node_0
-    current record: thread_24 <=> node_3
-    previous record: thread_43 <=> node_0
-    current record: thread_43 <=> node_5
-    previous record: thread_10 <=> node_0
-    current record: thread_10 <=> node_1
-    previous record: thread_33 <=> node_0
-    current record: thread_33 <=> node_4
-    previous record: thread_29 <=> node_0
-    current record: thread_29 <=> node_3
-    previous record: thread_48 <=> node_0
-    current record: thread_48 <=> node_6
-    previous record: thread_28 <=> node_0
-    current record: thread_28 <=> node_3
-    previous record: thread_47 <=> node_0
-    current record: thread_47 <=> node_5
-    previous record: thread_16 <=> node_0
-    current record: thread_16 <=> node_2
-    previous record: thread_11 <=> node_0
-    current record: thread_11 <=> node_1
-    previous record: thread_31 <=> node_0
-    previous record: thread_34 <=> node_0
-    current record: thread_34 <=> node_4
-    previous record: thread_55 <=> node_0
-    current record: thread_55 <=> node_6
-    previous record: thread_41 <=> node_0
-    current record: thread_41 <=> node_5
-    previous record: thread_20 <=> node_0
-    current record: thread_20 <=> node_2
-    previous record: thread_51 <=> node_0
-    current record: thread_51 <=> node_6
-    previous record: thread_18 <=> node_0
-    current record: thread_18 <=> node_2
-    previous record: thread_17 <=> node_0
-    current record: thread_17 <=> node_2
-    previous record: thread_32 <=> node_0
-    current record: thread_32 <=> node_4
-    previous record: thread_44 <=> node_0
-    current record: thread_44 <=> node_5
-    previous record: thread_56 <=> node_0
-    current record: thread_56 <=> node_7
-    previous record: thread_49 <=> node_0
-    current record: thread_49 <=> node_6
-    previous record: thread_63 <=> node_0
-    current record: thread_63 <=> node_7
-    previous record: thread_54 <=> node_0
-    current record: thread_54 <=> node_6
-    previous record: thread_61 <=> node_0
-    current record: thread_61 <=> node_7
-    previous record: thread_26 <=> node_0
-    current record: thread_26 <=> node_3
-    previous record: thread_42 <=> node_0
-    current record: thread_42 <=> node_5
-    current record: thread_53 <=> node_6
-    previous record: thread_57 <=> node_0
-    current record: thread_57 <=> node_7
-    previous record: thread_9 <=> node_0
-    current record: thread_9 <=> node_1
-    previous record: thread_52 <=> node_0
-    current record: thread_52 <=> node_6
-    previous record: thread_50 <=> node_0
-    current record: thread_50 <=> node_6
-    previous record: thread_46 <=> node_0
-    current record: thread_46 <=> node_5
-    current record: thread_22 <=> node_2
-    previous record: thread_35 <=> node_0
-    current record: thread_35 <=> node_4
-    previous record: thread_36 <=> node_0
-    current record: thread_36 <=> node_4
-    previous record: thread_25 <=> node_0
-    current record: thread_25 <=> node_3
-    previous record: thread_38 <=> node_0
-    current record: thread_38 <=> node_4
-    previous record: thread_37 <=> node_0
-    current record: thread_37 <=> node_4
-    current record: thread_40 <=> node_5
-    previous record: thread_58 <=> node_0
-    current record: thread_58 <=> node_7
-    previous record: thread_62 <=> node_0
-    current record: thread_62 <=> node_7
-    current record: thread_15 <=> node_1
-    previous record: thread_12 <=> node_0
-    current record: thread_12 <=> node_1
-    current record: thread_23 <=> node_2
-    previous record: thread_45 <=> node_0
-    current record: thread_45 <=> node_5
-    current record: thread_13 <=> node_1
-    current record: thread_59 <=> node_7
-    previous record: thread_19 <=> node_0
-    current record: thread_19 <=> node_2
-    previous record: thread_30 <=> node_0
-    current record: thread_30 <=> node_3
-    previous record: thread_27 <=> node_0
-    current record: thread_27 <=> node_3
-    previous record: thread_21 <=> node_0
-    current record: thread_21 <=> node_2
-    current record: thread_31 <=> node_3
-    previous record: thread_60 <=> node_0
-    current record: thread_60 <=> node_7
-    previous record: thread_39 <=> node_0
-    current record: thread_39 <=> node_4
-    previous record: thread_14 <=> node_0
-    current record: thread_14 <=> node_1
-    parallel access use: 107051367
-    parallel matrix multiplication use: 17470602
+** Experiments using OpenMP
+*** Test if the OpenMP threads is generated according to NUMA node locality
+- OpenMP in the parallel construct will generate 64 threads, the first 0~7 threads will allocate and access memory from NUMA node0, the next 8~15 threads will allocate and access memory from NUMA node1, and so on.
+- According to the NUMA topology 
+  | node 0 cpus: 0 4 8 12 16 20 24 28    |
+  | node 1 cpus: 32 36 40 44 48 52 56 60 |
+  | node 2 cpus: 2 6 10 14 18 22 26 30   |
+  | node 3 cpus: 34 38 42 46 50 54 58 62 |
+  | node 4 cpus: 3 7 11 15 19 23 27 31   |
+  | node 5 cpus: 35 39 43 47 51 55 59 63 |
+  | node 6 cpus: 1 5 9 13 17 21 25 29    |
+  | node 7 cpus: 33 37 41 45 49 53 57 61 |
+  |--------------------------------------|
+
+  - I set the NUMA environment as:
+    #+BEGIN_SRC sh
+    export OMP_PLACES="{0}, {4}, {8}, {12}, {16}, {20}, {24}, {28}, {32}, {36}, {40}, {44}, {48}, {52}, {56}, {60}, {2}, {6}, {10}, {14}, {18}, {22}, {26}, {30}, {34}, {38}, {42}, {46}, {50}, {54}, {58}, {62}, {3}, {7}, {11}, {15}, {19}, {23}, {27}, {31}, {35}, {39}, {43}, {47}, {51}, {55}, {59}, {63}, {1}, {5}, {9}, {13}, {17}, {21}, {25}, {29}, {33}, {37}, {41}, {45}, {49}, {53}, {57}, {61}"
   #+END_SRC
-- Time record
-  |        id |    access | multiplication | without_access | without_multiplication |
-  |         1 | 333679058 |       86703288 |      307299765 |               98623590 |
-  |         2 | 322496449 |       81689395 |      299924519 |               85783732 |
-  |         3 | 346066176 |       81845200 |      319220052 |              100671163 |
-  |         4 | 350297098 |       79371861 |      303946232 |               85174860 |
-  |      mean | 338134700 |       82402436 |      307597642 |               92563336 |
-  |-----------+-----------+----------------+----------------+------------------------|
-  | pthread_1 | 270228380 |      532114935 |                |                        |
-  | pthread_2 | 321331300 |     3474300200 |                |                        |
+  - Then use =#pragma omp parallel proc_bind(close)= to bind 64 threads according to =OMP_PLACES=.
+  - During execution, use =omp_get_thread_num()= to get each thread_id, and use =sched_getcpu()= to get the current thread is executing on which CPU, to check if it is same as the predefine scheme.
+  - After checking, each thread generated by OpenMP is executing according to the plan.
+*** Use different compilier optimization level to see if the optimization is effect
+|   id | access level0 | multiplication level0 | access level2 | multiplication level2 |
+|    1 |     335230152 |              86450733 |     329282949 |              28731075 |
+|    2 |     319493224 |              86753427 |     317015178 |              20604664 |
+|    3 |     322924294 |              80855368 |     332274013 |              28996716 |
+|    4 |     322924294 |              80855368 |     320535839 |              25889419 |
+| mean |     325142991 |              83728724 |    324776990. |              26055469 |
 #+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@6$5=vmean(@2..@5)
+From the comparision, we could see that the optimization level indeed take effect, especially on the multipcation case.
 
-*** The result shows the pthread version is slower than the OpenMP version
-**** Why?
-  In OpenMP version, when start tick(), each thread is already executing for mission; whereas in pthread, the pthreads have to first be generated, then set affinity, at last to execute.
-**** Use barrier in pthread to sync ready all threads before execution, plus "-O2" optimization using gcc
-***** ===Allocate mx with 8 * 20480000, WITH NUMA awareness
-|   id |   access | multiplication |
-|    1 | 62395687 |      732743679 |
-|    2 | 62029517 |      730706185 |
-|    3 | 56135640 |      728912121 |
-|    4 | 55443448 |      728838934 |
-| mean | 59001073 |      730300230 |
+*** Compare NUMA vs non-NUMA using OpenMP
+- both use optimization level 2
+- time measurement
+  |      id | non-NUMA access | non-NUMA multiplication | NUMA access | NUMA multiplication |
+  |       1 |       262611629 |                25957307 |   319459787 |            27242749 |
+  |       2 |       266202154 |                24971359 |   317124380 |            28645037 |
+  |       3 |       269134031 |                24630409 |   308853972 |            26528531 |
+  |       4 |       273664402 |                23336407 |   311153197 |            29279562 |
+  |    mean |       267903054 |                24723871 |   314147834 |           27923970. |
+  | pthread |       159383062 |               151926385 |             |                     |
+  #+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@6$5=vmean(@2..@5)  label:openmp-performance-table-1
+
+- summary 
+  According to this measurement, you could found that NUMA version is worse than non-NUMA version. I think the reason to cause NUMA version is slower is because the OS has to schedule each thread on a specific CPU. That is a too strict to achieve NUMA locality since you actually need to schedule on a set of CPUs for one NUMA node instead of schedule on one particular CPU.
+
+*** Change settings about =OMP_PLACES=
+- Change =OMP_PLACES= to:
+  #+BEGIN_SRC sh
+    export OMP_PLACES="{0, 4, 8, 12, 16, 20, 24, 28}, {32, 36, 40, 44, 48, 52, 56, 60}, {2, 6, 10, 14, 18, 22, 26, 30}, {34, 38, 42, 46, 50, 54, 58, 62}, {3, 7, 11, 15, 19, 23, 27, 31}, {35, 39, 43, 47, 51, 55, 59, 63}, {1, 5, 9, 13, 17, 21, 25, 29}, {33, 37, 41, 45, 49, 53, 57, 61}"
+  #+END_SRC
+
+- time measurement, with optimization level = 2
+  |   id | non-NUMA access | non-NUMA multiplication | NUMA access | NUMA multiplication |
+  |    1 |       283806290 |                45075298 |   308910591 |            26020108 |
+  |    2 |       292365042 |                66875479 |   313655646 |            27090225 |
+  |    3 |       303580500 |                69254549 |   322728477 |            23495901 |
+  |    4 |       280702041 |                39244008 |   329080558 |            28275037 |
+  |    5 |       294252690 |                34725024 |   323499789 |            27878445 |
+  |    6 |       279747220 |                37873401 |   341436966 |            30811872 |
+  | mean |      289075630. |               48841293. |  323218670. |           27261931. |
+  #+TBLFM: @8$2=vmean(@2..@7)::@8$3=vmean(@2..@7)::@8$4=vmean(@2..@7)::@8$5=vmean(@2..@7)
+
+- summary
+  - It seems my expectation for relaxing the schedule on set of CPUs instead of on one particular CPU doesn't work well as I expected. The reason I think is the OS scheduler could schedule multiple threads on the same CPU. So it actually make the performance worse than previous setting, for both NUMA and non-NUMA case.
+  - Access time for non-NUMA is still faster than NUMA
+  - Multiplication time for NUMA is better than non-NUMA, while it shows no advantage over non-NUMA while =OMP_PLACES= is configure to fix on each CPU.
+
+*** Increase the size of data to make NUMA effect more important
+- From previous experiments, it shows when =OMP_PLACES= is set to schedule on each CPU, the performance is better for both NUMA and non-NUMA; and non-NUMA is better than NUMA. In this experiment, continue to increase the size of data, to make NUMA effect more important to see OpenMP under NUMA awareness is whether better or worse comparing with non-NUMA.
+- time measurement, 25600 * 25600, with optimization level 2
+  |   id | non-NUMA access | non-NUMA multipcation | NUMA access | NUMA multipcation |
+  |    1 |      1136666571 |              77452377 |  1124357282 |          78184265 |
+  |    2 |      1036407809 |              85516505 |  1107078429 |          77917661 |
+  |    3 |      1063054334 |              78347814 |  1101156621 |          79212596 |
+  |    4 |      1035991932 |              77821935 |  1086195798 |          78019858 |
+  |    5 |      1026371449 |              84138365 |  1071735039 |          78102814 |
+  |    6 |      1030569386 |              79861620 |  1099029846 |          84898814 |
+  | mean |     1054843600. |             80523103. | 1098258800. |         79389335. |
+  #+TBLFM: @8$2=vmean(@2..@7)::@8$3=vmean(@2..@7)::@8$4=vmean(@2..@7)::@8$5=vmean(@2..@7)
+- summary
+  I expected the NUMA performance will be better than non-NUMA, but from the result, it doesn't shows an obvious advantage. There may be something wrong.
+
+*** Configure OpenMP to access remote node to verfiy the NUMA awareness effect from negative point of view
+- Since by configuring OpenMP with NUMA doesn't show advantage over non-NUMA configuration. I need to proof that from a negative point of view by configure NUMA access from remote nodes.
+- Configure all memory allocate on NUMA node 7, and expected the performance become worse becuase 56/64 threads will access memory remotely
+- time measurement, 12800 * 12800, with optimization level 2
+  |   id | NUMA access | NUMA multiplication |
+  |    1 |   306617492 |            32410022 |
+  |    2 |   309534292 |            31684650 |
+  |    3 |   298530840 |            24370234 |
+  |    4 |   304718160 |            27047280 |
+  |    5 |   312366607 |            27151744 |
+  |    6 |   308791332 |            25503240 |
+  |    7 |   308954756 |            26223124 |
+  | mean |  307073350. |            27770042 |
+  #+TBLFM: @9$2=vmean(@2..@8)::@9$3=vmean(@2..@8)
+
+- summary
+  compare it with table ref:openmp-performance-table-1, the result is similar...
+
+** Performance comparision between pthread and OpenMP
+*** Summary of Using OpenMP with NUMA
+The result from fatest to slowest for multiplication time is:
+1) the best general performance is under =OMP_PLACES= configured for each CPU, with non-NUMA awareness.
+   Under such binding scheme, NUMA awareness make the performance become a little worse. I have tried to allocate all memory on NUMA node 7, which means around 56/64 threads will access memory remotely. That doesn't show performance becomes obviously worse and it is similar with the performance of accessing from NUMA locality.
+2) When I configure =OMP_PLACES= to distribute threads across CPU set based on NUMA node, instead of fixing each thread on each CPU. The NUMA version is better than non-NUMA version. But it is useless to do so. Because its performance is still worse than non-NUMA version under previous =OMP_PLACES= configurations(fix each thread on each CPU).
+3) OpenMP version's total execution time is worse than pthread version for all OpenMP configuration.
+4) For access time, pthread version is faster than OpenMP version
+5) For multiplication time, pthread version is much slower than OpenMP version. 
+6) All use optimization level 2 and it has effect.
+
+In general, I think OpenMP could combine with compiler to produce much efficient code for multiplication. pthread has little overhead and could be faster than OpenMP under NUMA consideration. If the task is much more complicated for each thread, then I think pthread version will win because I guess OpenMP and compiler will not be able to generate very efficient code.
+
+*** Feed back from ZhiYi
+- It is very unlikely that the compiler could generate such different code for doing multiplication between OpenMP and pthread.
+- ask compiler to use FPU for pthread code, then do the test again
+- What is FPU and how to set it so the compiler could use it?
+  use =-mhard-float= compile option
+- May have to go to assembly language to see the details
+*** Measure the pthread execution time 
+- before specify =-mhard-float=, means generate output containing floating point instructions, this is the default. 
+  |   id |    access | multipcation |
+  |    1 | 160274465 |    151846524 |
+  |    2 | 157219317 |    151687159 |
+  |    3 | 158095075 |    149357437 |
+  |    4 | 158095075 |    149357437 |
+  | mean | 158420983 |    150562140 |
 #+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
 
-***** ===Allocate mx with 12800 * 12800, WITH NUMA awareness:
-|   id |    access | multiplication |           |           |
-|    1 | 157397744 |      145636085 | 157066664 | 153113354 |
-|    2 | 154774561 |      152104165 | 158771222 | 152392162 |
-|    3 | 157017712 |      148060454 | 155616274 | 151821547 |
-|    4 | 160361269 |      147043263 |           | 151334586 |
-| mean | 157387820 |      148210990 |           |           |
+- after specify =-mhard-float=
+  |   id |    access | multiplication |
+  |    1 | 161272758 |      158283874 |
+  |    2 | 157998876 |      149994785 |
+  |    3 | 156882903 |      154323816 |
+  |    4 | 152328315 |      154846556 |
+  | mean | 157120713 |      154362260 |
 #+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)
-
-***** OpenMP WITHOUT NUMA
-|   id |     access | multiplication | total execution time of program(s) |
-|    1 |  320158095 |       59331935 |                            3.48299 |
-|    2 |  284337430 |       40079501 |                            3.70962 |
-|    3 |  289169162 |       37238352 |                            3.76046 |
-|    4 |  289169162 |       37238352 |                            3.76046 |
-|    5 |  279510204 |       26479233 |                            4.05004 |
-| mean | 292468810. |      40073475. |                           3.752714 |
-|------+------------+----------------+------------------------------------|
-#+TBLFM: @6$2=vmean(@2..@5)::@6$3=vmean(@2..@5)::@6$4=vmean(@2..@5)::@7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)
-
-***** OpenMP WITH NUMA
-|   id |     access | multiplication | total execution time of program(s) |
-|    1 |  310407371 |       26091806 |                            4.70972 |
-|    2 |  339623837 |       31384191 |                            5.03681 |
-|    3 |  331996566 |       26439365 |                            4.61384 |
-|    4 |  309772190 |       27053034 |                            4.94841 |
-|    5 |  323199487 |       29638938 |                            4.27998 |
-| MEAN | 322999890. |      28121467. |                           4.717752 |
-|------+------------+----------------+------------------------------------|
-#+TBLFM: @7$2=vmean(@2..@6)::@7$3=vmean(@2..@6)::@7$4=vmean(@2..@6)::@13$2=vmean(@2..@12)::@13$3=vmean(@2..@12)::@13$4=vmean(@2..@12)
-
-**** The OpenMP still has the fatest multiplication time
-- why
-
+- summary, from the documentation, =-mhard-float= is indeed the default option, the performance doesn't show improvement.
+  It seems I have to check the assembly code to figure out why the performance is so different between OpenMP and pthread
+*** Check the generated assembly code for pthread and OpenMP parallel multiplication code
 * Troubleshooting
 ** GCC version is 4.8 not enough to support OpenMP 4.0 for proc_bind functionality
 - download gcc7.2 
