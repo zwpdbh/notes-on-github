@@ -1612,6 +1612,28 @@ In general, I think OpenMP could combine with compiler to produce much efficient
 
 #+END_SRC
 
+**** code block for source
+#+BEGIN_SRC c
+  #pragma omp parallel proc_bind(close) num_threads(NUM_THREADS) default(none) shared(mx, v, w, topology, ROWS, COLS, distribute_scheme, time_records) private(i, j, start, end)
+    {
+      int sched_cpu = sched_getcpu();
+      int thread_id = omp_get_thread_num();
+      if(topology[sched_cpu] != distribute_scheme[thread_id]) {
+        printf("During multiplication, threads are running wrong\n");
+      }
+
+      start = tick();
+  #pragma omp for schedule (static)
+      for (i = 0; i < ROWS; i++) {
+        for(j = 0; j < COLS; j++) {
+          w[i] += (mx[i][j] * v[j]);
+        }
+      }
+      end = tick();
+      printf("thread_%d takes %ld\n", thread_id, end - start);
+    }
+
+#+END_SRC
 *** generate assembly code for pthread code
 **** command line
 #+BEGIN_SRC sh
@@ -1667,6 +1689,32 @@ In general, I think OpenMP could combine with compiler to produce much efficient
            866 # 37 "matrix_multiplication.cpp" 1
            867         rdtsc
 
+#+END_SRC
+
+**** code block for source
+#+BEGIN_SRC c
+  void* multiply_fn(void* arg) {
+    pInfo info = *(pInfo*)arg;
+
+    int sched_cpu = sched_getcpu();
+    int current_on_node = topology[sched_cpu];  
+    int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
+    if(with_numa && node_index != current_on_node) {
+      migrate_to_node(node_index);
+    }
+
+    pthread_barrier_wait(&b);  
+    auto start = tick();
+    for (long k = info.from; k < info.from + info.job_size; k++) {
+      for (long j = 0; j < COLS; j++) {
+        w[k] += (mx[k][j] * v[j]);
+        //      w[k] += (*(*(mx + k) +j) * v[j]);
+      }
+    }
+    auto end = tick();
+    time_records[info.thread_id] = end - start;
+    return (void *)0;
+  }
 #+END_SRC
 * Troubleshooting
 ** GCC version is 4.8 not enough to support OpenMP 4.0 for proc_bind functionality
