@@ -1374,6 +1374,160 @@ In general, I think OpenMP could combine with compiler to produce much efficient
 - summary, from the documentation, =-mhard-float= is indeed the default option, the performance doesn't show improvement.
   It seems I have to check the assembly code to figure out why the performance is so different between OpenMP and pthread
 ** Check assembly code for pthread and OpenMP parallel multiplication to exam why there is so much different on performance
+*** Measure execution time for each thread
+**** pthread
+#+BEGIN_SRC sh
+  wzhao@r815:~/numa-knn$ ./bin/matrix_multiplication 12800 12800 2
+  s = 163840000
+  fix main_thread: 140666197047104 on cpu0
+  ===Allocate mx with 12800 * 12800, WITH NUMA awareness:
+  allocate 12800 by 12800 matrix
+  parallel access matrix with shape ROWS * COLS, use: 158434856
+  execution_time for thread_0 is: 25811707
+  execution_time for thread_1 is: 39146625
+  execution_time for thread_2 is: 38689711
+  execution_time for thread_3 is: 18968286
+  execution_time for thread_4 is: 42242188
+  execution_time for thread_5 is: 20329806
+  execution_time for thread_6 is: 20096659
+  execution_time for thread_7 is: 142304394
+  execution_time for thread_8 is: 44232895
+  execution_time for thread_9 is: 43858278
+  execution_time for thread_10 is: 61079477
+  execution_time for thread_11 is: 42888566
+  execution_time for thread_12 is: 37178390
+  execution_time for thread_13 is: 43499010
+  execution_time for thread_14 is: 44232278
+  execution_time for thread_15 is: 59066298
+  execution_time for thread_16 is: 36302153
+  execution_time for thread_17 is: 34433373
+  execution_time for thread_18 is: 33450582
+  execution_time for thread_19 is: 36574305
+  execution_time for thread_20 is: 35585001
+  execution_time for thread_21 is: 56079130
+  execution_time for thread_22 is: 31475274
+  execution_time for thread_23 is: 29475119
+  execution_time for thread_24 is: 51665701
+  execution_time for thread_25 is: 73907170
+  execution_time for thread_26 is: 60759266
+  execution_time for thread_27 is: 66223746
+  execution_time for thread_28 is: 84355017
+  execution_time for thread_29 is: 48460394
+  execution_time for thread_30 is: 63947405
+  execution_time for thread_31 is: 89287052
+  execution_time for thread_32 is: 59692195
+  execution_time for thread_33 is: 56029106
+  execution_time for thread_34 is: 42633811
+  execution_time for thread_35 is: 42159121
+  execution_time for thread_36 is: 44311916
+  execution_time for thread_37 is: 44220044
+  execution_time for thread_38 is: 34822759
+  execution_time for thread_39 is: 56633364
+  execution_time for thread_40 is: 89097401
+  execution_time for thread_41 is: 86921945
+  execution_time for thread_42 is: 72168548
+  execution_time for thread_43 is: 89003931
+  execution_time for thread_44 is: 88814848
+  execution_time for thread_45 is: 45535213
+  execution_time for thread_46 is: 89028603
+  execution_time for thread_47 is: 71954688
+  execution_time for thread_48 is: 37697252
+  execution_time for thread_49 is: 43018927
+  execution_time for thread_50 is: 36570570
+  execution_time for thread_51 is: 55947573
+  execution_time for thread_52 is: 43071152
+  execution_time for thread_53 is: 49220455
+  execution_time for thread_54 is: 38225214
+  execution_time for thread_55 is: 37081349
+  execution_time for thread_56 is: 56987272
+  execution_time for thread_57 is: 86720271
+  execution_time for thread_58 is: 84175740
+  execution_time for thread_59 is: 86107602
+  execution_time for thread_60 is: 86571010
+  execution_time for thread_61 is: 80477377
+  execution_time for thread_62 is: 67635127
+  execution_time for thread_63 is: 67629714
+  the max_execution time is from thread_7, it is: 142304394
+  parallel multiplication with matrix shape ROWS * COLS, use: 142304394
+#+END_SRC
+**** OpenMP
+#+BEGIN_SRC sh
+  wzhao@r815:~/numa-knn$ ./bin/openmp_matrix_multiplication 12800 12800 1
+  OMP_PLACES : {0}, {4}, {8}, {12}, {16}, {20}, {24}, {28}, {32}, {36}, {40}, {44}, {48}, {52}, {56}, {60}, {2}, {6}, {10}, {14}, {18}, {22}, {26}, {30}, {34}, {38}, {42}, {46}, {50}, {54}, {58}, {62}, {3}, {7}, {11}, {15}, {19}, {23}, {27}, {31}, {35}, {39}, {43}, {47}, {51}, {55}, {59}, {63}, {1}, {5}, {9}, {13}, {17}, {21}, {25}, {29}, {33}, {37}, {41}, {45}, {49}, {53}, {57}, {61}
+  fix main_thread: 140272493819840 on cpu0
+  ===WITH NUMA:
+  during access:
+  parallel access use: 347065654
+  during multiplication:
+  execution_time for thread_0 is: 23263891
+  execution_time for thread_1 is: 23250446
+  execution_time for thread_2 is: 23245685
+  execution_time for thread_3 is: 23245589
+  execution_time for thread_4 is: 23244663
+  execution_time for thread_5 is: 23243710
+  execution_time for thread_6 is: 23245227
+  execution_time for thread_7 is: 23245203
+  execution_time for thread_8 is: 23245845
+  execution_time for thread_9 is: 23245991
+  execution_time for thread_10 is: 23251517
+  execution_time for thread_11 is: 23251514
+  execution_time for thread_12 is: 23245732
+  execution_time for thread_13 is: 23245763
+  execution_time for thread_14 is: 23253933
+  execution_time for thread_15 is: 23253406
+  execution_time for thread_16 is: 23242764
+  execution_time for thread_17 is: 23242905
+  execution_time for thread_18 is: 23246030
+  execution_time for thread_19 is: 23245999
+  execution_time for thread_20 is: 23247785
+  execution_time for thread_21 is: 23246862
+  execution_time for thread_22 is: 23239579
+  execution_time for thread_23 is: 23239548
+  execution_time for thread_24 is: 23217726
+  execution_time for thread_25 is: 23217892
+  execution_time for thread_26 is: 23216667
+  execution_time for thread_27 is: 23216566
+  execution_time for thread_28 is: 23217630
+  execution_time for thread_29 is: 23217779
+  execution_time for thread_30 is: 23216721
+  execution_time for thread_31 is: 23222684
+  execution_time for thread_32 is: 23245449
+  execution_time for thread_33 is: 23245416
+  execution_time for thread_34 is: 23242869
+  execution_time for thread_35 is: 23242696
+  execution_time for thread_36 is: 23244685
+  execution_time for thread_37 is: 23242141
+  execution_time for thread_38 is: 23251539
+  execution_time for thread_39 is: 23252905
+  execution_time for thread_40 is: 23229603
+  execution_time for thread_41 is: 23229627
+  execution_time for thread_42 is: 23230670
+  execution_time for thread_43 is: 23230664
+  execution_time for thread_44 is: 23228910
+  execution_time for thread_45 is: 23228870
+  execution_time for thread_46 is: 23230183
+  execution_time for thread_47 is: 23230243
+  execution_time for thread_48 is: 23243949
+  execution_time for thread_49 is: 23240454
+  execution_time for thread_50 is: 22956393
+  execution_time for thread_51 is: 23240093
+  execution_time for thread_52 is: 23245480
+  execution_time for thread_53 is: 23245488
+  execution_time for thread_54 is: 23236365
+  execution_time for thread_55 is: 23236345
+  execution_time for thread_56 is: 23135988
+  execution_time for thread_57 is: 23135847
+  execution_time for thread_58 is: 23138779
+  execution_time for thread_59 is: 23138663
+  execution_time for thread_60 is: 23128408
+  execution_time for thread_61 is: 23139349
+  execution_time for thread_62 is: 23137153
+  execution_time for thread_63 is: 23137047
+  the max execution time is in thread: 0, use: 23263891
+  parallel matrix multiplication use: 23263891
+  total execution time: 4.29773 seconds
+
+#+END_SRC
 *** generate assembly code for OpenMP code
 **** command line
   #+BEGIN_SRC sh
@@ -1386,889 +1540,78 @@ In general, I think OpenMP could combine with compiler to produce much efficient
         -fopenmp -O2 \
         -std=gnu++11 openmp_matrix_multiplication.cpp -S
   #+END_SRC
-**** generated code
+**** code block of assembly
 #+BEGIN_SRC asm
-          .file   "openmp_matrix_multiplication.cpp"
-          .section        .text.unlikely,"ax",@progbits
-          .LCOLDB0:
-          .section        .text.startup,"ax",@progbits
-          .LHOTB0:
-          .p2align 4,,15
-          .globl  main
-          .type   main, @function
-          main:
-          .LFB2408:
-          .cfi_startproc
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 16
-          movl    NUM_THREADS(%rip), %edx
-          movl    $main._omp_fn.0, %edi
-          movl    $3, %ecx
-          xorl    %esi, %esi
-          call    GOMP_parallel
-          xorl    %edi, %edi
-          call    exit
-          .cfi_endproc
-          .LFE2408:
-          .size   main, .-main
-          .section        .text.unlikely
-          .LCOLDE0:
-          .section        .text.startup
-          .LHOTE0:
-          .section        .rodata.str1.1,"aMS",@progbits,1
-          .LC1:
-          .string "memory allocation failed"
-          .section        .text.unlikely
-          .LCOLDB2:
-          .text
-          .LHOTB2:
-          .p2align 4,,15
-          .globl  _Z7emallocm
-          .type   _Z7emallocm, @function
-          _Z7emallocm:
-          .LFB2409:
-          .cfi_startproc
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 16
-          call    malloc
-          testq   %rax, %rax
-          je      .L7
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 8
-          ret
-          .L7:
-          .cfi_restore_state
-          movq    stderr(%rip), %rcx
-          movl    $.LC1, %edi
-          movl    $24, %edx
-          movl    $1, %esi
-          call    fwrite
-          movl    $1, %edi
-          call    exit
-          .cfi_endproc
-          .LFE2409:
-          .size   _Z7emallocm, .-_Z7emallocm
-          .section        .text.unlikely
-          .LCOLDE2:
-          .text
-          .LHOTE2:
-          .section        .text.unlikely
-          .LCOLDB3:
-          .text
-          .LHOTB3:
-          .p2align 4,,15
-          .globl  _Z8remallocPvm
-          .type   _Z8remallocPvm, @function
-          _Z8remallocPvm:
-          .LFB2410:
-          .cfi_startproc
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 16
-          call    realloc
-          testq   %rax, %rax
-          je      .L11
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 8
-          ret
-          .L11:
-          .cfi_restore_state
-          movq    stderr(%rip), %rcx
-          movl    $.LC1, %edi
-          movl    $24, %edx
-          movl    $1, %esi
-          call    fwrite
-          movl    $1, %edi
-          call    exit
-          .cfi_endproc
-          .LFE2410:
-          .size   _Z8remallocPvm, .-_Z8remallocPvm
-          .section        .text.unlikely
-          .LCOLDE3:
-          .text
-          .LHOTE3:
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .align 2
-          .LCOLDB4:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .LHOTB4:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E:
-          .LFB2595:
-          .cfi_startproc
-          testq   %rsi, %rsi
-          pushq   %r12
-          .cfi_def_cfa_offset 16
-          .cfi_offset 12, -16
-          movq    %rdi, %r12
-          pushq   %rbp
-          .cfi_def_cfa_offset 24
-          .cfi_offset 6, -24
-          pushq   %rbx
-          .cfi_def_cfa_offset 32
-          .cfi_offset 3, -32
-          movq    %rsi, %rbx
-          je      .L12
-          .p2align 4,,10
-          .p2align 3
-          .L16:
-          movq    24(%rbx), %rsi
-          movq    %r12, %rdi
-          call    _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          movq    16(%rbx), %rbp
-          movq    %rbx, %rdi
-          call    _ZdlPv
-          testq   %rbp, %rbp
-          movq    %rbp, %rbx
-          jne     .L16
-          .L12:
-          popq    %rbx
-          .cfi_def_cfa_offset 24
-          popq    %rbp
-          .cfi_def_cfa_offset 16
-          popq    %r12
-          .cfi_def_cfa_offset 8
-          ret
-          .cfi_endproc
-          .LFE2595:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E, .-_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .LCOLDE4:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .LHOTE4:
-          .section        .text.unlikely._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .align 2
-          .LCOLDB5:
-          .section        .text._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .LHOTB5:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev
-          .type   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev, @function
-          _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev:
-          .LFB2764:
-          .cfi_startproc
-          movq    16(%rdi), %rsi
-          jmp     _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          .cfi_endproc
-          .LFE2764:
-          .size   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev, .-_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev
-          .section        .text.unlikely._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .LCOLDE5:
-          .section        .text._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .LHOTE5:
-          .weak   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED1Ev
-          .set    _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED1Ev,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .align 2
-          .LCOLDB6:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .LHOTB6:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E:
-          .LFB2603:
-          .cfi_startproc
-          testq   %rsi, %rsi
-          pushq   %r12
-          .cfi_def_cfa_offset 16
-          .cfi_offset 12, -16
-          movq    %rdi, %r12
-          pushq   %rbp
-          .cfi_def_cfa_offset 24
-          .cfi_offset 6, -24
-          pushq   %rbx
-          .cfi_def_cfa_offset 32
-          .cfi_offset 3, -32
-          movq    %rsi, %rbx
-          je      .L20
-          .p2align 4,,10
-          .p2align 3
-          .L27:
-          movq    24(%rbx), %rsi
-          movq    %r12, %rdi
-          call    _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          movq    40(%rbx), %rdi
-          movq    16(%rbx), %rbp
-          testq   %rdi, %rdi
-          je      .L22
-          call    _ZdlPv
-          .L22:
-          movq    %rbx, %rdi
-          movq    %rbp, %rbx
-          call    _ZdlPv
-          testq   %rbp, %rbp
-          jne     .L27
-          .L20:
-          popq    %rbx
-          .cfi_def_cfa_offset 24
-          popq    %rbp
-          .cfi_def_cfa_offset 16
-          popq    %r12
-          .cfi_def_cfa_offset 8
-          ret
-          .cfi_endproc
-          .LFE2603:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E, .-_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .LCOLDE6:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .LHOTE6:
-          .section        .text.unlikely._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .align 2
-          .LCOLDB7:
-          .section        .text._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .LHOTB7:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev
-          .type   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev, @function
-          _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev:
-          .LFB2767:
-          .cfi_startproc
-          movq    16(%rdi), %rsi
-          jmp     _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          .cfi_endproc
-          .LFE2767:
-          .size   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev, .-_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev
-          .section        .text.unlikely._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .LCOLDE7:
-          .section        .text._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .LHOTE7:
-          .weak   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED1Ev
-          .set    _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED1Ev,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .align 2
-          .LCOLDB8:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .LHOTB8:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_:
-          .LFB2659:
-          .cfi_startproc
-          pushq   %rbp
-          .cfi_def_cfa_offset 16
-          .cfi_offset 6, -16
-          pushq   %rbx
-          .cfi_def_cfa_offset 24
-          .cfi_offset 3, -24
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 32
-          movq    16(%rdi), %rbx
-          testq   %rbx, %rbx
-          je      .L46
-          movl    (%rsi), %r8d
-          jmp     .L37
-          .p2align 4,,10
-          .p2align 3
-          .L48:
-          movq    16(%rbx), %rax
-          movl    $1, %r9d
-          testq   %rax, %rax
-          je      .L47
-          .L42:
-          movq    %rax, %rbx
-          .L37:
-          movl    32(%rbx), %ecx
-          cmpl    %r8d, %ecx
-          jg      .L48
-          movq    24(%rbx), %rax
-          xorl    %r9d, %r9d
-          testq   %rax, %rax
-          jne     .L42
-          .L47:
-          testb   %r9b, %r9b
-          movq    %rbx, %rdx
-          jne     .L34
-          .L38:
-          xorl    %esi, %esi
-          movq    %rbx, %rax
-          cmpl    %r8d, %ecx
-          cmovl   %rsi, %rax
-          cmovge  %rsi, %rdx
-          .L40:
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 24
-          popq    %rbx
-          .cfi_def_cfa_offset 16
-          popq    %rbp
-          .cfi_def_cfa_offset 8
-          ret
-          .L46:
-          .cfi_restore_state
-          leaq    8(%rdi), %rbx
-          .p2align 4,,10
-          .p2align 3
-          .L34:
-          xorl    %eax, %eax
-          cmpq    %rbx, 24(%rdi)
-          movq    %rbx, %rdx
-          je      .L40
-          movq    %rsi, %rbp
-          movq    %rbx, %rdi
-          call    _ZSt18_Rb_tree_decrementPSt18_Rb_tree_node_base
-          movq    %rbx, %rdx
-          movl    0(%rbp), %r8d
-          movl    32(%rax), %ecx
-          movq    %rax, %rbx
-          jmp     .L38
-          .cfi_endproc
-          .LFE2659:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_, .-_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .LCOLDE8:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .LHOTE8:
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .align 2
-          .LCOLDB9:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .LHOTB9:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_:
-          .LFB2610:
-          .cfi_startproc
-          pushq   %r13
-          .cfi_def_cfa_offset 16
-          .cfi_offset 13, -16
-          leaq    8(%rdi), %rax
-          pushq   %r12
-          .cfi_def_cfa_offset 24
-          .cfi_offset 12, -24
-          pushq   %rbp
-          .cfi_def_cfa_offset 32
-          .cfi_offset 6, -32
-          pushq   %rbx
-          .cfi_def_cfa_offset 40
-          .cfi_offset 3, -40
-          movq    %rdi, %rbp
-          movq    %rsi, %rbx
-          movq    %rdx, %r13
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 48
-          cmpq    %rax, %rsi
-          je      .L62
-          movl    (%rdx), %r12d
-          cmpl    32(%rsi), %r12d
-          jge     .L53
-          movq    24(%rdi), %rax
-          cmpq    %rsi, %rax
-          movq    %rax, %rdx
-          je      .L60
-          movq    %rsi, %rdi
-          call    _ZSt18_Rb_tree_decrementPSt18_Rb_tree_node_base
-          cmpl    32(%rax), %r12d
-          movq    %rax, %rdx
-          jle     .L51
-          cmpq    $0, 24(%rax)
-          movl    $0, %ecx
-          movq    %rcx, %rax
-          cmovne  %rbx, %rax
-          cmovne  %rbx, %rdx
-          .L60:
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L53:
-          .cfi_restore_state
-          jle     .L57
-          movq    32(%rdi), %rdx
-          xorl    %eax, %eax
-          cmpq    %rsi, %rdx
-          je      .L60
-          movq    %rsi, %rdi
-          call    _ZSt18_Rb_tree_incrementPSt18_Rb_tree_node_base
-          cmpl    32(%rax), %r12d
-          movq    %rax, %rdx
-          jge     .L51
-          cmpq    $0, 24(%rbx)
-          movl    $0, %ecx
-          movq    %rcx, %rax
-          cmovne  %rdx, %rax
-          cmove   %rbx, %rdx
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L62:
-          .cfi_restore_state
-          cmpq    $0, 40(%rdi)
-          je      .L51
-          movq    32(%rdi), %rbx
-          movl    (%rdx), %eax
-          cmpl    %eax, 32(%rbx)
-          jl      .L52
-          .p2align 4,,10
-          .p2align 3
-          .L51:
-          movq    %r13, %rsi
-          movq    %rbp, %rdi
-          call    _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L57:
-          .cfi_restore_state
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          movq    %rsi, %rax
-          xorl    %edx, %edx
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L52:
-          .cfi_restore_state
-          xorl    %eax, %eax
-          movq    %rbx, %rdx
-          jmp     .L60
-          .cfi_endproc
-          .LFE2610:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_, .-_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .LCOLDE9:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .LHOTE9:
-          .section        .rodata.str1.8,"aMS",@progbits,1
-          .align 8
-          .LC10:
-          .string "During multiplication, threads are running wrong"
-          .section        .text.unlikely
-          .LCOLDB11:
-          .text
-          .LHOTB11:
-          .p2align 4,,15
-          .type   main._omp_fn.0, @function
-          main._omp_fn.0:
-          .LFB2770:
-          .cfi_startproc
-          .cfi_personality 0x3,__gxx_personality_v0
-          .cfi_lsda 0x3,.LLSDA2770
-          pushq   %r13
-          .cfi_def_cfa_offset 16
-          .cfi_offset 13, -16
-          pushq   %r12
-          .cfi_def_cfa_offset 24
-          .cfi_offset 12, -24
-          movl    $topology+8, %r12d
-          pushq   %rbp
-          .cfi_def_cfa_offset 32
-          .cfi_offset 6, -32
-          pushq   %rbx
-          .cfi_def_cfa_offset 40
-          .cfi_offset 3, -40
-          subq    $24, %rsp
-          .cfi_def_cfa_offset 64
-          call    sched_getcpu
-          movl    %eax, %ebp
-          call    omp_get_thread_num
-          movq    topology+16(%rip), %rdx
-          movl    %eax, %ebx
-          testq   %rdx, %rdx
-          jne     .L67
-          jmp     .L64
-          .p2align 4,,10
-          .p2align 3
-          .L109:
-          movq    %rdx, %r12
-          movq    16(%rdx), %rdx
-          testq   %rdx, %rdx
-          je      .L108
-          .L67:
-          cmpl    32(%rdx), %ebp
-          jle     .L109
-          movq    24(%rdx), %rdx
-          testq   %rdx, %rdx
-          jne     .L67
-          .L108:
-          cmpq    $topology+8, %r12
-          je      .L64
-          cmpl    32(%r12), %ebp
-          jl      .L64
-          .L68:
-          movq    distribute_scheme+16(%rip), %rdx
-          movl    36(%r12), %r12d
-          movl    $distribute_scheme+8, %ebp
-          testq   %rdx, %rdx
-          jne     .L74
-          jmp     .L71
-          .p2align 4,,10
-          .p2align 3
-          .L111:
-          movq    %rdx, %rbp
-          movq    16(%rdx), %rdx
-          testq   %rdx, %rdx
-          je      .L110
-          .L74:
-          cmpl    32(%rdx), %ebx
-          jle     .L111
-          movq    24(%rdx), %rdx
-          testq   %rdx, %rdx
-          jne     .L74
-          .L110:
-          cmpq    $distribute_scheme+8, %rbp
-          je      .L71
-          cmpl    32(%rbp), %ebx
-          jl      .L71
-          .L75:
-          cmpl    36(%rbp), %r12d
-          je      .L86
-          movl    $.LC10, %edi
-          call    puts
-          .L86:
-          movl    ROWS(%rip), %ebp
-          call    omp_get_num_threads
-          movl    %eax, %ecx
-          movl    %ebp, %eax
-          cltd
-          idivl   %ecx
-          cmpl    %edx, %ebx
-          jge     .L85
-          addl    $1, %eax
-          xorl    %edx, %edx
-          .L85:
-          imull   %eax, %ebx
-          addl    %ebx, %edx
-          addl    %edx, %eax
-          cmpl    %eax, %edx
-          jge     .L80
-          subl    %edx, %eax
-          movq    COLS(%rip), %r10
-          movslq  %edx, %rdx
-          leal    -1(%rax), %r9d
-          movq    w(%rip), %rax
-          movq    v(%rip), %r8
-          leaq    0(,%r10,4), %rdi
-          addq    $1, %r9
-          leaq    (%rax,%rdx,4), %rcx
-          movq    mx(%rip), %rax
-          leaq    (%rax,%rdx,8), %r11
-          xorl    %edx, %edx
-          .p2align 4,,10
-          .p2align 3
-          .L82:
-          testq   %r10, %r10
-          jle     .L84
-          movq    (%r11,%rdx,8), %rsi
-          movss   (%rcx,%rdx,4), %xmm1
-          xorl    %eax, %eax
-          .p2align 4,,10
-          .p2align 3
-          .L83:
-          movss   (%rsi,%rax), %xmm0
-          mulss   (%r8,%rax), %xmm0
-          addq    $4, %rax
-          cmpq    %rdi, %rax
-          addss   %xmm0, %xmm1
-          movss   %xmm1, (%rcx,%rdx,4)
-          jne     .L83
-          .L84:
-          addq    $1, %rdx
-          cmpq    %r9, %rdx
-          jne     .L82
-          .L80:
-          addq    $24, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          jmp     GOMP_barrier
-          .L64:
-          .cfi_restore_state
-          movl    $40, %edi
-          movq    %r12, %r13
-          call    _Znwm
-          leaq    32(%rax), %rdx
-          movl    %ebp, 32(%rax)
-          movl    $0, 36(%rax)
-          movq    %r13, %rsi
-          movl    $topology, %edi
-          movq    %rax, %r12
-          call    _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_
-          testq   %rdx, %rdx
-          je      .L112
-          testq   %rax, %rax
-          jne     .L93
-          cmpq    $topology+8, %rdx
-          je      .L93
-          xorl    %edi, %edi
-          movl    32(%rdx), %eax
-          cmpl    %eax, 32(%r12)
-          setl    %dil
-          .L69:
-          movl    $topology+8, %ecx
-          movq    %r12, %rsi
-          call    _ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
-          addq    $1, topology+40(%rip)
-          jmp     .L68
-          .L71:
-          movl    $40, %edi
-          movq    %rbp, %r13
-          call    _Znwm
-          leaq    32(%rax), %rdx
-          movl    %ebx, 32(%rax)
-          movl    $0, 36(%rax)
-          movq    %r13, %rsi
-          movl    $distribute_scheme, %edi
-          movq    %rax, %rbp
-          call    _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_
-          testq   %rdx, %rdx
-          je      .L113
-          testq   %rax, %rax
-          jne     .L96
-          cmpq    $distribute_scheme+8, %rdx
-          je      .L96
-          xorl    %edi, %edi
-          movl    32(%rdx), %eax
-          cmpl    %eax, 32(%rbp)
-          setl    %dil
-          .L76:
-          movl    $distribute_scheme+8, %ecx
-          movq    %rbp, %rsi
-          call    _ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
-          addq    $1, distribute_scheme+40(%rip)
-          jmp     .L75
-          .L113:
-          movq    %rbp, %rdi
-          movq    %rax, 8(%rsp)
-          call    _ZdlPv
-          movq    8(%rsp), %rax
-          movq    %rax, %rbp
-          jmp     .L75
-          .L112:
-          movq    %r12, %rdi
-          movq    %rax, 8(%rsp)
-          call    _ZdlPv
-          movq    8(%rsp), %rax
-          movq    %rax, %r12
-          jmp     .L68
-          .L96:
-          movl    $1, %edi
-          jmp     .L76
-          .L93:
-          movl    $1, %edi
-          jmp     .L69
-          .cfi_endproc
-          .LFE2770:
-          .globl  __gxx_personality_v0
-          .section        .gcc_except_table,"a",@progbits
-          .LLSDA2770:
-          .byte   0xff
-          .byte   0xff
-          .byte   0x1
-          .uleb128 .LLSDACSE2770-.LLSDACSB2770
-          .LLSDACSB2770:
-          .LLSDACSE2770:
-          .text
-          .size   main._omp_fn.0, .-main._omp_fn.0
-          .section        .text.unlikely
-          .LCOLDE11:
-          .text
-          .LHOTE11:
-          .section        .text.unlikely
-          .LCOLDB12:
-          .section        .text.startup
-          .LHOTB12:
-          .p2align 4,,15
-          .type   _GLOBAL__sub_I_ROWS, @function
-          _GLOBAL__sub_I_ROWS:
-          .LFB2769:
-          .cfi_startproc
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 16
-          movl    $_ZStL8__ioinit, %edi
-          call    _ZNSt8ios_base4InitC1Ev
-          movl    $__dso_handle, %edx
-          movl    $_ZStL8__ioinit, %esi
-          movl    $_ZNSt8ios_base4InitD1Ev, %edi
-          call    __cxa_atexit
-          movl    $__dso_handle, %edx
-          movl    $topology, %esi
-          movl    $_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED1Ev, %edi
-          movl    $0, topology+8(%rip)
-          movq    $0, topology+16(%rip)
-          movq    $0, topology+40(%rip)
-          movq    $topology+8, topology+24(%rip)
-          movq    $topology+8, topology+32(%rip)
-          call    __cxa_atexit
-          movl    $__dso_handle, %edx
-          movl    $topology_inverse, %esi
-          movl    $_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED1Ev, %edi
-          movl    $0, topology_inverse+8(%rip)
-          movq    $0, topology_inverse+16(%rip)
-          movq    $0, topology_inverse+40(%rip)
-          movq    $topology_inverse+8, topology_inverse+24(%rip)
-          movq    $topology_inverse+8, topology_inverse+32(%rip)
-          call    __cxa_atexit
-          movl    $0, distribute_scheme+8(%rip)
-          movq    $0, distribute_scheme+16(%rip)
-          movl    $__dso_handle, %edx
-          movq    $0, distribute_scheme+40(%rip)
-          movq    $distribute_scheme+8, distribute_scheme+24(%rip)
-          movl    $distribute_scheme, %esi
-          movq    $distribute_scheme+8, distribute_scheme+32(%rip)
-          movl    $_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED1Ev, %edi
-          addq    $8, %rsp
-          .cfi_def_cfa_offset 8
-          jmp     __cxa_atexit
-          .cfi_endproc
-          .LFE2769:
-          .size   _GLOBAL__sub_I_ROWS, .-_GLOBAL__sub_I_ROWS
-          .section        .text.unlikely
-          .LCOLDE12:
-          .section        .text.startup
-          .LHOTE12:
-          .section        .init_array,"aw"
-          .align 8
-          .quad   _GLOBAL__sub_I_ROWS
-          .globl  distribute_scheme
-          .bss
-          .align 32
-          .type   distribute_scheme, @object
-          .size   distribute_scheme, 48
-          distribute_scheme:
-          .zero   48
-          .globl  topology_inverse
-          .align 32
-          .type   topology_inverse, @object
-          .size   topology_inverse, 48
-          topology_inverse:
-          .zero   48
-          .globl  topology
-          .align 32
-          .type   topology, @object
-          .size   topology, 48
-          topology:
-          .zero   48
-          .globl  s
-          .align 8
-          .type   s, @object
-          .size   s, 8
-          s:
-          .zero   8
-          .globl  w
-          .align 8
-          .type   w, @object
-          .size   w, 8
-          w:
-          .zero   8
-          .globl  v
-          .align 8
-          .type   v, @object
-          .size   v, 8
-          v:
-          .zero   8
-          .globl  mx
-          .align 8
-          .type   mx, @object
-          .size   mx, 8
-          mx:
-          .zero   8
-          .globl  with_numa
-          .data
-          .align 4
-          .type   with_numa, @object
-          .size   with_numa, 4
-          with_numa:
-          .long   1
-          .globl  main_thread
-          .bss
-          .align 8
-          .type   main_thread, @object
-          .size   main_thread, 8
-          main_thread:
-          .zero   8
-          .globl  NUM_NODES
-          .data
-          .align 4
-          .type   NUM_NODES, @object
-          .size   NUM_NODES, 4
-          NUM_NODES:
-          .long   8
-          .globl  NUM_THREADS
-          .align 4
-          .type   NUM_THREADS, @object
-          .size   NUM_THREADS, 4
-          NUM_THREADS:
-          .long   64
-          .globl  COLS
-          .bss
-          .align 8
-          .type   COLS, @object
-          .size   COLS, 8
-          COLS:
-          .zero   8
-          .globl  ROWS
-          .align 8
-          .type   ROWS, @object
-          .size   ROWS, 8
-          ROWS:
-          .zero   8
-          .local  _ZStL8__ioinit
-          .comm   _ZStL8__ioinit,1,1
-          .hidden __dso_handle
-          .ident  "GCC: (GNU) 4.9.4"
-          .section        .note.GNU-stack,"",@progbits
+          521         rdtsc
+          522 # 0 "" 2
+          523 #NO_APP
+          524         salq    $32, %rdx
+          525         movl    %eax, %eax
+          526         movq    %rdx, %rbx
+          527         orq     %rax, %rbx
+          528         call    omp_get_num_threads
+          529         movl    %eax, %ecx
+          530         movl    %r12d, %eax
+          531         cltd
+          532         idivl   %ecx
+          533         cmpl    %edx, %ebp
+          534         jge     .L77
+          535         addl    $1, %eax
+          536         xorl    %edx, %edx
+          537 .L77:
+          538         movl    %eax, %ecx
+          539         imull   %ebp, %ecx
+          540         addl    %edx, %ecx
+          541         addl    %ecx, %eax
+          542         cmpl    %eax, %ecx
+          543         jge     .L72
+          544         movq    w(%rip), %rdi
+          545         subl    %ecx, %eax
+          546         movq    COLS(%rip), %rsi
+          547         movslq  %ecx, %rcx
+          548         movq    v(%rip), %rdx
+          549         subl    $1, %eax
+          550         addq    $1, %rax
+          551         leaq    (%rdi,%rcx,4), %r8
+          552         movq    mx(%rip), %rdi
+          553         leaq    0(,%rsi,4), %r10
+          554         leaq    (%rdi,%rcx,8), %r11
+          555         xorl    %edi, %edi
+          556         .p2align 4,,10
+          557         .p2align 3
+          558 .L74:
+          559         testq   %rsi, %rsi
+          560         jle     .L76
+          561         movq    (%r11,%rdi,8), %r9
+          562         movss   (%r8,%rdi,4), %xmm1
+          563         xorl    %ecx, %ecx
+          564         .p2align 4,,10
+          565         .p2align 3
+          566 .L75:
+          567         movss   (%r9,%rcx), %xmm0
+          568         mulss   (%rdx,%rcx), %xmm0
+          569         addq    $4, %rcx
+          570         cmpq    %r10, %rcx
+          571         addss   %xmm0, %xmm1
+          572         movss   %xmm1, (%r8,%rdi,4)
+          573         jne     .L75
+          574 .L76:
+          575         addq    $1, %rdi
+          576         cmpq    %rax, %rdi
+          577         jne     .L74
+          578 .L72:
+          579         call    GOMP_barrier
+          580         movl    $16, %ecx
+          581         addq    $24, %rsp
+          582         .cfi_remember_state
+          583         .cfi_def_cfa_offset 40
+          584         movl    %ebp, %esi
+          585 #APP
+          586 # 37 "openmp_matrix_multiplication.cpp" 1
+          587         rdtsc
+
 #+END_SRC
+
 *** generate assembly code for pthread code
 **** command line
 #+BEGIN_SRC sh
@@ -2281,1336 +1624,49 @@ In general, I think OpenMP could combine with compiler to produce much efficient
       -pthread -mhard-float -O2 \
       -std=gnu++11 matrix_multiplication.cpp -S
 #+END_SRC
-**** generated code
+**** code block of assembly
 #+BEGIN_SRC asm
-          .file   "matrix_multiplication.cpp"
-          .section        .rodata.str1.1,"aMS",@progbits,1
-          .LC0:
-          .string "memory allocation failed"
-          .section        .text.unlikely,"ax",@progbits
-          .LCOLDB1:
-          .text
-          .LHOTB1:
-          .p2align 4,,15
-          .type   _Z7emallocm.part.2, @function
-          _Z7emallocm.part.2:
-          .LFB2885:
-          .cfi_startproc
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 16
-          movq    stderr(%rip), %rcx
-          movl    $.LC0, %edi
-          movl    $24, %edx
-          movl    $1, %esi
-          call    fwrite
-          movl    $1, %edi
-          call    exit
-          .cfi_endproc
-          .LFE2885:
-          .size   _Z7emallocm.part.2, .-_Z7emallocm.part.2
-          .section        .text.unlikely
-          .LCOLDE1:
-          .text
-          .LHOTE1:
-          .section        .rodata.str1.8,"aMS",@progbits,1
-          .align 8
-          .LC2:
-          .string "parallel multiplication with matrix shape ROWS * COLS, use: %lld\n"
-          .align 8
-          .LC3:
-          .string "error during thread creation, exit..."
-          .section        .text.unlikely
-          .LCOLDB4:
-          .section        .text.startup,"ax",@progbits
-          .LHOTB4:
-          .p2align 4,,15
-          .globl  main
-          .type   main, @function
-          main:
-          .LFB2408:
-          .cfi_startproc
-          pushq   %r14
-          .cfi_def_cfa_offset 16
-          .cfi_offset 14, -16
-          movslq  NUM_THREADS(%rip), %r14
-          pushq   %r13
-          .cfi_def_cfa_offset 24
-          .cfi_offset 13, -24
-          pushq   %r12
-          .cfi_def_cfa_offset 32
-          .cfi_offset 12, -32
-          pushq   %rbp
-          .cfi_def_cfa_offset 40
-          .cfi_offset 6, -40
-          pushq   %rbx
-          .cfi_def_cfa_offset 48
-          .cfi_offset 3, -48
-          leaq    (%r14,%r14,2), %rdi
-          salq    $4, %rdi
-          call    malloc
-          testq   %rax, %rax
-          movq    %rax, %r13
-          je      .L4
-          xorl    %r12d, %r12d
-          testl   %r14d, %r14d
-          movq    %r14, %rbp
-          movq    %rax, %rbx
-          jg      .L13
-          jmp     .L11
-          .p2align 4,,10
-          .p2align 3
-          .L18:
-          subl    $1, %ebp
-          movq    %r12, 8(%rbx)
-          movq    $1, 16(%rbx)
-          cmpl    %esi, %ebp
-          je      .L16
-          .L8:
-          leaq    40(%rbx), %rdi
-          xorl    %esi, %esi
-          movq    %rbx, %rcx
-          movl    $_Z11multiply_fnPv, %edx
-          call    pthread_create
-          testl   %eax, %eax
-          jne     .L17
-          movl    NUM_THREADS(%rip), %ebp
-          leal    1(%r12), %eax
-          addq    $48, %rbx
-          addq    $1, %r12
-          cmpl    %eax, %ebp
-          jle     .L11
-          movslq  %ebp, %r14
-          .L13:
-          movq    ROWS(%rip), %rcx
-          movl    %r12d, %esi
-          movq    %rcx, %rax
-          cqto
-          idivq   %r14
-          testq   %rax, %rax
-          je      .L18
-          movq    %rax, %rdx
-          subl    $1, %ebp
-          movq    %rax, 16(%rbx)
-          imulq   %r12, %rdx
-          cmpl    %esi, %ebp
-          movq    %rdx, 8(%rbx)
-          jne     .L8
-          .L16:
-          movq    %rcx, %rax
-          cqto
-          idivq   %r14
-          addq    %rdx, 16(%rbx)
-          jmp     .L8
-          .L11:
-          movl    $b, %edi
-          movl    $16, %ebx
-          call    pthread_barrier_wait
-          movl    NUM_THREADS(%rip), %esi
-          movl    %ebx, %ecx
-          movq    %r13, %rdi
-          #APP
-          # 36 "matrix_multiplication.cpp" 1
-          rdtsc
-          # 0 "" 2
-          #NO_APP
-          movl    %eax, %eax
-          salq    $32, %rdx
-          orq     %rax, %rdx
-          movq    %rdx, %rbp
-          call    _Z17construct_barrierP11pthreadInfoi
-          movl    %ebx, %ecx
-          movl    $.LC2, %edi
-          #APP
-          # 36 "matrix_multiplication.cpp" 1
-          rdtsc
-          # 0 "" 2
-          #NO_APP
-          movq    %rdx, %rsi
-          movl    %eax, %eax
-          salq    $32, %rsi
-          orq     %rax, %rsi
-          xorl    %eax, %eax
-          subq    %rbp, %rsi
-          call    printf
-          xorl    %edi, %edi
-          call    exit
-          .L17:
-          movl    $.LC3, %edi
-          call    puts
-          orl     $-1, %edi
-          call    exit
-          .L4:
-          call    _Z7emallocm.part.2
-          .cfi_endproc
-          .LFE2408:
-          .size   main, .-main
-          .section        .text.unlikely
-          .LCOLDE4:
-          .section        .text.startup
-          .LHOTE4:
-          .section        .text.unlikely
-          .LCOLDB5:
-          .text
-          .LHOTB5:
-          .p2align 4,,15
-          .globl  _Z7emallocm
-          .type   _Z7emallocm, @function
-          _Z7emallocm:
-          .LFB2409:
-          .cfi_startproc
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 16
-          call    malloc
-          testq   %rax, %rax
-          je      .L22
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 8
-          ret
-          .L22:
-          .cfi_restore_state
-          call    _Z7emallocm.part.2
-          .cfi_endproc
-          .LFE2409:
-          .size   _Z7emallocm, .-_Z7emallocm
-          .section        .text.unlikely
-          .LCOLDE5:
-          .text
-          .LHOTE5:
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .align 2
-          .LCOLDB6:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .LHOTB6:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E:
-          .LFB2633:
-          .cfi_startproc
-          testq   %rsi, %rsi
-          pushq   %r12
-          .cfi_def_cfa_offset 16
-          .cfi_offset 12, -16
-          movq    %rdi, %r12
-          pushq   %rbp
-          .cfi_def_cfa_offset 24
-          .cfi_offset 6, -24
-          pushq   %rbx
-          .cfi_def_cfa_offset 32
-          .cfi_offset 3, -32
-          movq    %rsi, %rbx
-          je      .L23
-          .p2align 4,,10
-          .p2align 3
-          .L27:
-          movq    24(%rbx), %rsi
-          movq    %r12, %rdi
-          call    _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          movq    16(%rbx), %rbp
-          movq    %rbx, %rdi
-          call    _ZdlPv
-          testq   %rbp, %rbp
-          movq    %rbp, %rbx
-          jne     .L27
-          .L23:
-          popq    %rbx
-          .cfi_def_cfa_offset 24
-          popq    %rbp
-          .cfi_def_cfa_offset 16
-          popq    %r12
-          .cfi_def_cfa_offset 8
-          ret
-          .cfi_endproc
-          .LFE2633:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E, .-_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .LCOLDE6:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E,comdat
-          .LHOTE6:
-          .section        .text.unlikely._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .align 2
-          .LCOLDB7:
-          .section        .text._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .LHOTB7:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev
-          .type   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev, @function
-          _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev:
-          .LFB2877:
-          .cfi_startproc
-          movq    16(%rdi), %rsi
-          jmp     _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE8_M_eraseEPSt13_Rb_tree_nodeIS2_E
-          .cfi_endproc
-          .LFE2877:
-          .size   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev, .-_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev
-          .section        .text.unlikely._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .LCOLDE7:
-          .section        .text._ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev,"axG",@progbits,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED5Ev,comdat
-          .LHOTE7:
-          .weak   _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED1Ev
-          .set    _ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED1Ev,_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED2Ev
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .align 2
-          .LCOLDB8:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .LHOTB8:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E:
-          .LFB2641:
-          .cfi_startproc
-          testq   %rsi, %rsi
-          pushq   %r12
-          .cfi_def_cfa_offset 16
-          .cfi_offset 12, -16
-          movq    %rdi, %r12
-          pushq   %rbp
-          .cfi_def_cfa_offset 24
-          .cfi_offset 6, -24
-          pushq   %rbx
-          .cfi_def_cfa_offset 32
-          .cfi_offset 3, -32
-          movq    %rsi, %rbx
-          je      .L31
-          .p2align 4,,10
-          .p2align 3
-          .L38:
-          movq    24(%rbx), %rsi
-          movq    %r12, %rdi
-          call    _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          movq    40(%rbx), %rdi
-          movq    16(%rbx), %rbp
-          testq   %rdi, %rdi
-          je      .L33
-          call    _ZdlPv
-          .L33:
-          movq    %rbx, %rdi
-          movq    %rbp, %rbx
-          call    _ZdlPv
-          testq   %rbp, %rbp
-          jne     .L38
-          .L31:
-          popq    %rbx
-          .cfi_def_cfa_offset 24
-          popq    %rbp
-          .cfi_def_cfa_offset 16
-          popq    %r12
-          .cfi_def_cfa_offset 8
-          ret
-          .cfi_endproc
-          .LFE2641:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E, .-_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .LCOLDE8:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E,comdat
-          .LHOTE8:
-          .section        .text.unlikely._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .align 2
-          .LCOLDB9:
-          .section        .text._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .LHOTB9:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev
-          .type   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev, @function
-          _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev:
-          .LFB2880:
-          .cfi_startproc
-          movq    16(%rdi), %rsi
-          jmp     _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE8_M_eraseEPSt13_Rb_tree_nodeIS5_E
-          .cfi_endproc
-          .LFE2880:
-          .size   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev, .-_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev
-          .section        .text.unlikely._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .LCOLDE9:
-          .section        .text._ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev,"axG",@progbits,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED5Ev,comdat
-          .LHOTE9:
-          .weak   _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED1Ev
-          .set    _ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED1Ev,_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED2Ev
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .align 2
-          .LCOLDB10:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .LHOTB10:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_:
-          .LFB2725:
-          .cfi_startproc
-          pushq   %rbp
-          .cfi_def_cfa_offset 16
-          .cfi_offset 6, -16
-          pushq   %rbx
-          .cfi_def_cfa_offset 24
-          .cfi_offset 3, -24
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 32
-          movq    16(%rdi), %rbx
-          testq   %rbx, %rbx
-          je      .L57
-          movl    (%rsi), %r8d
-          jmp     .L48
-          .p2align 4,,10
-          .p2align 3
-          .L59:
-          movq    16(%rbx), %rax
-          movl    $1, %r9d
-          testq   %rax, %rax
-          je      .L58
-          .L53:
-          movq    %rax, %rbx
-          .L48:
-          movl    32(%rbx), %ecx
-          cmpl    %r8d, %ecx
-          jg      .L59
-          movq    24(%rbx), %rax
-          xorl    %r9d, %r9d
-          testq   %rax, %rax
-          jne     .L53
-          .L58:
-          testb   %r9b, %r9b
-          movq    %rbx, %rdx
-          jne     .L45
-          .L49:
-          xorl    %esi, %esi
-          movq    %rbx, %rax
-          cmpl    %r8d, %ecx
-          cmovl   %rsi, %rax
-          cmovge  %rsi, %rdx
-          .L51:
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 24
-          popq    %rbx
-          .cfi_def_cfa_offset 16
-          popq    %rbp
-          .cfi_def_cfa_offset 8
-          ret
-          .L57:
-          .cfi_restore_state
-          leaq    8(%rdi), %rbx
-          .p2align 4,,10
-          .p2align 3
-          .L45:
-          xorl    %eax, %eax
-          cmpq    %rbx, 24(%rdi)
-          movq    %rbx, %rdx
-          je      .L51
-          movq    %rsi, %rbp
-          movq    %rbx, %rdi
-          call    _ZSt18_Rb_tree_decrementPSt18_Rb_tree_node_base
-          movq    %rbx, %rdx
-          movl    0(%rbp), %r8d
-          movl    32(%rax), %ecx
-          movq    %rax, %rbx
-          jmp     .L49
-          .cfi_endproc
-          .LFE2725:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_, .-_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .LCOLDE10:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_,comdat
-          .LHOTE10:
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .align 2
-          .LCOLDB11:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .LHOTB11:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_:
-          .LFB2648:
-          .cfi_startproc
-          pushq   %r13
-          .cfi_def_cfa_offset 16
-          .cfi_offset 13, -16
-          leaq    8(%rdi), %rax
-          pushq   %r12
-          .cfi_def_cfa_offset 24
-          .cfi_offset 12, -24
-          pushq   %rbp
-          .cfi_def_cfa_offset 32
-          .cfi_offset 6, -32
-          pushq   %rbx
-          .cfi_def_cfa_offset 40
-          .cfi_offset 3, -40
-          movq    %rdi, %rbp
-          movq    %rsi, %rbx
-          movq    %rdx, %r13
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 48
-          cmpq    %rax, %rsi
-          je      .L73
-          movl    (%rdx), %r12d
-          cmpl    32(%rsi), %r12d
-          jge     .L64
-          movq    24(%rdi), %rax
-          cmpq    %rsi, %rax
-          movq    %rax, %rdx
-          je      .L71
-          movq    %rsi, %rdi
-          call    _ZSt18_Rb_tree_decrementPSt18_Rb_tree_node_base
-          cmpl    32(%rax), %r12d
-          movq    %rax, %rdx
-          jle     .L62
-          cmpq    $0, 24(%rax)
-          movl    $0, %ecx
-          movq    %rcx, %rax
-          cmovne  %rbx, %rax
-          cmovne  %rbx, %rdx
-          .L71:
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L64:
-          .cfi_restore_state
-          jle     .L68
-          movq    32(%rdi), %rdx
-          xorl    %eax, %eax
-          cmpq    %rsi, %rdx
-          je      .L71
-          movq    %rsi, %rdi
-          call    _ZSt18_Rb_tree_incrementPSt18_Rb_tree_node_base
-          cmpl    32(%rax), %r12d
-          movq    %rax, %rdx
-          jge     .L62
-          cmpq    $0, 24(%rbx)
-          movl    $0, %ecx
-          movq    %rcx, %rax
-          cmovne  %rdx, %rax
-          cmove   %rbx, %rdx
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L73:
-          .cfi_restore_state
-          cmpq    $0, 40(%rdi)
-          je      .L62
-          movq    32(%rdi), %rbx
-          movl    (%rdx), %eax
-          cmpl    %eax, 32(%rbx)
-          jl      .L63
-          .p2align 4,,10
-          .p2align 3
-          .L62:
-          movq    %r13, %rsi
-          movq    %rbp, %rdi
-          call    _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE24_M_get_insert_unique_posERS1_
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L68:
-          .cfi_restore_state
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          movq    %rsi, %rax
-          xorl    %edx, %edx
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L63:
-          .cfi_restore_state
-          xorl    %eax, %eax
-          movq    %rbx, %rdx
-          jmp     .L71
-          .cfi_endproc
-          .LFE2648:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_, .-_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .LCOLDE11:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_,comdat
-          .LHOTE11:
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,comdat
-          .align 2
-          .LCOLDB12:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,comdat
-          .LHOTB12:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_:
-          .LFB2747:
-          .cfi_startproc
-          pushq   %rbp
-          .cfi_def_cfa_offset 16
-          .cfi_offset 6, -16
-          pushq   %rbx
-          .cfi_def_cfa_offset 24
-          .cfi_offset 3, -24
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 32
-          movq    16(%rdi), %rbx
-          testq   %rbx, %rbx
-          je      .L88
-          movl    (%rsi), %r8d
-          jmp     .L79
-          .p2align 4,,10
-          .p2align 3
-          .L90:
-          movq    16(%rbx), %rax
-          movl    $1, %r9d
-          testq   %rax, %rax
-          je      .L89
-          .L84:
-          movq    %rax, %rbx
-          .L79:
-          movl    32(%rbx), %ecx
-          cmpl    %r8d, %ecx
-          jg      .L90
-          movq    24(%rbx), %rax
-          xorl    %r9d, %r9d
-          testq   %rax, %rax
-          jne     .L84
-          .L89:
-          testb   %r9b, %r9b
-          movq    %rbx, %rdx
-          jne     .L76
-          .L80:
-          xorl    %esi, %esi
-          movq    %rbx, %rax
-          cmpl    %r8d, %ecx
-          cmovl   %rsi, %rax
-          cmovge  %rsi, %rdx
-          .L82:
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 24
-          popq    %rbx
-          .cfi_def_cfa_offset 16
-          popq    %rbp
-          .cfi_def_cfa_offset 8
-          ret
-          .L88:
-          .cfi_restore_state
-          leaq    8(%rdi), %rbx
-          .p2align 4,,10
-          .p2align 3
-          .L76:
-          xorl    %eax, %eax
-          cmpq    %rbx, 24(%rdi)
-          movq    %rbx, %rdx
-          je      .L82
-          movq    %rsi, %rbp
-          movq    %rbx, %rdi
-          call    _ZSt18_Rb_tree_decrementPSt18_Rb_tree_node_base
-          movq    %rbx, %rdx
-          movl    0(%rbp), %r8d
-          movl    32(%rax), %ecx
-          movq    %rax, %rbx
-          jmp     .L80
-          .cfi_endproc
-          .LFE2747:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_, .-_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,comdat
-          .LCOLDE12:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_,comdat
-          .LHOTE12:
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,comdat
-          .align 2
-          .LCOLDB13:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,comdat
-          .LHOTB13:
-          .align 2
-          .p2align 4,,15
-          .weak   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_
-          .type   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_, @function
-          _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_:
-          .LFB2670:
-          .cfi_startproc
-          pushq   %r13
-          .cfi_def_cfa_offset 16
-          .cfi_offset 13, -16
-          leaq    8(%rdi), %rax
-          pushq   %r12
-          .cfi_def_cfa_offset 24
-          .cfi_offset 12, -24
-          pushq   %rbp
-          .cfi_def_cfa_offset 32
-          .cfi_offset 6, -32
-          pushq   %rbx
-          .cfi_def_cfa_offset 40
-          .cfi_offset 3, -40
-          movq    %rdi, %rbp
-          movq    %rsi, %rbx
-          movq    %rdx, %r13
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 48
-          cmpq    %rax, %rsi
-          je      .L104
-          movl    (%rdx), %r12d
-          cmpl    32(%rsi), %r12d
-          jge     .L95
-          movq    24(%rdi), %rax
-          cmpq    %rsi, %rax
-          movq    %rax, %rdx
-          je      .L102
-          movq    %rsi, %rdi
-          call    _ZSt18_Rb_tree_decrementPSt18_Rb_tree_node_base
-          cmpl    32(%rax), %r12d
-          movq    %rax, %rdx
-          jle     .L93
-          cmpq    $0, 24(%rax)
-          movl    $0, %ecx
-          movq    %rcx, %rax
-          cmovne  %rbx, %rax
-          cmovne  %rbx, %rdx
-          .L102:
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L95:
-          .cfi_restore_state
-          jle     .L99
-          movq    32(%rdi), %rdx
-          xorl    %eax, %eax
-          cmpq    %rsi, %rdx
-          je      .L102
-          movq    %rsi, %rdi
-          call    _ZSt18_Rb_tree_incrementPSt18_Rb_tree_node_base
-          cmpl    32(%rax), %r12d
-          movq    %rax, %rdx
-          jge     .L93
-          cmpq    $0, 24(%rbx)
-          movl    $0, %ecx
-          movq    %rcx, %rax
-          cmovne  %rdx, %rax
-          cmove   %rbx, %rdx
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L104:
-          .cfi_restore_state
-          cmpq    $0, 40(%rdi)
-          je      .L93
-          movq    32(%rdi), %rbx
-          movl    (%rdx), %eax
-          cmpl    %eax, 32(%rbx)
-          jl      .L94
-          .p2align 4,,10
-          .p2align 3
-          .L93:
-          movq    %r13, %rsi
-          movq    %rbp, %rdi
-          call    _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE24_M_get_insert_unique_posERS1_
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L99:
-          .cfi_restore_state
-          addq    $8, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          movq    %rsi, %rax
-          xorl    %edx, %edx
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L94:
-          .cfi_restore_state
-          xorl    %eax, %eax
-          movq    %rbx, %rdx
-          jmp     .L102
-          .cfi_endproc
-          .LFE2670:
-          .size   _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_, .-_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_
-          .section        .text.unlikely._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,comdat
-          .LCOLDE13:
-          .section        .text._ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,"axG",@progbits,_ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_,comdat
-          .LHOTE13:
-          .section        .text.unlikely
-          .LCOLDB14:
-          .text
-          .LHOTB14:
-          .p2align 4,,15
-          .globl  _Z15migrate_to_nodei
-          .type   _Z15migrate_to_nodei, @function
-          _Z15migrate_to_nodei:
-          .LFB2411:
-          .cfi_startproc
-          pushq   %r13
-          .cfi_def_cfa_offset 16
-          .cfi_offset 13, -16
-          pushq   %r12
-          .cfi_def_cfa_offset 24
-          .cfi_offset 12, -24
-          xorl    %eax, %eax
-          pushq   %rbp
-          .cfi_def_cfa_offset 32
-          .cfi_offset 6, -32
-          pushq   %rbx
-          .cfi_def_cfa_offset 40
-          .cfi_offset 3, -40
-          movl    %edi, %ebp
-          movl    $16, %ecx
-          movl    $topology_inverse+8, %r12d
-          subq    $152, %rsp
-          .cfi_def_cfa_offset 192
-          leaq    16(%rsp), %rbx
-          movq    %rbx, %rdi
-          rep; stosq
-          movq    topology_inverse+16(%rip), %rcx
-          testq   %rcx, %rcx
-          jne     .L109
-          jmp     .L106
-          .p2align 4,,10
-          .p2align 3
-          .L141:
-          movq    %rcx, %r12
-          movq    16(%rcx), %rcx
-          testq   %rcx, %rcx
-          je      .L140
-          .L109:
-          cmpl    32(%rcx), %ebp
-          jle     .L141
-          movq    24(%rcx), %rcx
-          testq   %rcx, %rcx
-          jne     .L109
-          .L140:
-          cmpq    $topology_inverse+8, %r12
-          je      .L106
-          cmpl    32(%r12), %ebp
-          jl      .L106
-          .L110:
-          movq    48(%r12), %rdx
-          subq    40(%r12), %rdx
-          movq    %rdx, %rax
-          sarq    $2, %rax
-          testq   %rax, %rax
-          jne     .L142
-          call    pthread_self
-          movq    %rbx, %rdx
-          movl    $128, %esi
-          movq    %rax, %rdi
-          call    pthread_setaffinity_np
-          addq    $152, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L106:
-          .cfi_restore_state
-          movl    $64, %edi
-          movq    %r12, %r13
-          call    _Znwm
-          leaq    32(%rax), %rdx
-          movl    %ebp, 32(%rax)
-          movq    $0, 40(%rax)
-          movq    $0, 48(%rax)
-          movq    $0, 56(%rax)
-          movq    %r13, %rsi
-          movl    $topology_inverse, %edi
-          movq    %rax, %r12
-          call    _ZNSt8_Rb_treeIiSt4pairIKiSt6vectorIiSaIiEEESt10_Select1stIS5_ESt4lessIiESaIS5_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS5_ERS1_
-          testq   %rdx, %rdx
-          je      .L143
-          testq   %rax, %rax
-          jne     .L126
-          cmpq    $topology_inverse+8, %rdx
-          je      .L126
-          xorl    %edi, %edi
-          movl    32(%rdx), %eax
-          cmpl    %eax, 32(%r12)
-          setl    %dil
-          .L111:
-          movl    $topology_inverse+8, %ecx
-          movq    %r12, %rsi
-          call    _ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
-          addq    $1, topology_inverse+40(%rip)
-          jmp     .L110
-          .p2align 4,,10
-          .p2align 3
-          .L142:
-          movabsq $4611686018427387903, %rcx
-          cmpq    %rcx, %rax
-          ja      .L144
-          movq    %rdx, %rdi
-          call    _Znwm
-          movq    40(%r12), %rsi
-          movq    48(%r12), %rdx
-          movq    %rax, %rbp
-          subq    %rsi, %rdx
-          movq    %rdx, %r12
-          sarq    $2, %r12
-          testq   %r12, %r12
-          jne     .L145
-          .L117:
-          call    pthread_self
-          movq    %rbx, %rdx
-          movl    $128, %esi
-          movq    %rax, %rdi
-          call    pthread_setaffinity_np
-          movq    %rbp, %rdi
-          call    _ZdlPv
-          addq    $152, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 40
-          popq    %rbx
-          .cfi_def_cfa_offset 32
-          popq    %rbp
-          .cfi_def_cfa_offset 24
-          popq    %r12
-          .cfi_def_cfa_offset 16
-          popq    %r13
-          .cfi_def_cfa_offset 8
-          ret
-          .p2align 4,,10
-          .p2align 3
-          .L145:
-          .cfi_restore_state
-          movq    %rax, %rdi
-          call    memmove
-          leaq    0(%rbp,%r12,4), %rax
-          movq    %rbp, %rsi
-          movl    $1, %edi
-          .p2align 4,,10
-          .p2align 3
-          .L119:
-          movslq  (%rsi), %r8
-          cmpq    $1023, %r8
-          movq    %r8, %rcx
-          ja      .L118
-          shrq    $6, %r8
-          movq    %rdi, %rdx
-          salq    %cl, %rdx
-          orq     %rdx, 16(%rsp,%r8,8)
-          .L118:
-          addq    $4, %rsi
-          cmpq    %rax, %rsi
-          jne     .L119
-          jmp     .L117
-          .p2align 4,,10
-          .p2align 3
-          .L143:
-          movq    40(%r12), %rdi
-          testq   %rdi, %rdi
-          je      .L113
-          movq    %rax, 8(%rsp)
-          call    _ZdlPv
-          movq    8(%rsp), %rax
-          .L113:
-          movq    %r12, %rdi
-          movq    %rax, 8(%rsp)
-          call    _ZdlPv
-          movq    8(%rsp), %rax
-          movq    %rax, %r12
-          jmp     .L110
-          .L126:
-          movl    $1, %edi
-          jmp     .L111
-          .L144:
-          call    _ZSt17__throw_bad_allocv
-          .cfi_endproc
-          .LFE2411:
-          .size   _Z15migrate_to_nodei, .-_Z15migrate_to_nodei
-          .section        .text.unlikely
-          .LCOLDE14:
-          .text
-          .LHOTE14:
-          .section        .text.unlikely
-          .LCOLDB15:
-          .text
-          .LHOTB15:
-          .p2align 4,,15
-          .globl  _Z11multiply_fnPv
-          .type   _Z11multiply_fnPv, @function
-          _Z11multiply_fnPv:
-          .LFB2410:
-          .cfi_startproc
-          pushq   %r15
-          .cfi_def_cfa_offset 16
-          .cfi_offset 15, -16
-          pushq   %r14
-          .cfi_def_cfa_offset 24
-          .cfi_offset 14, -24
-          pushq   %r13
-          .cfi_def_cfa_offset 32
-          .cfi_offset 13, -32
-          pushq   %r12
-          .cfi_def_cfa_offset 40
-          .cfi_offset 12, -40
-          pushq   %rbp
-          .cfi_def_cfa_offset 48
-          .cfi_offset 6, -48
-          pushq   %rbx
-          .cfi_def_cfa_offset 56
-          .cfi_offset 3, -56
-          movl    $topology+8, %ebp
-          subq    $24, %rsp
-          .cfi_def_cfa_offset 80
-          movl    (%rdi), %r14d
-          movq    8(%rdi), %rbx
-          movq    16(%rdi), %r13
-          call    sched_getcpu
-          movq    topology+16(%rip), %rcx
-          movl    %eax, %r12d
-          testq   %rcx, %rcx
-          jne     .L150
-          jmp     .L147
-          .p2align 4,,10
-          .p2align 3
-          .L177:
-          movq    %rcx, %rbp
-          movq    16(%rcx), %rcx
-          testq   %rcx, %rcx
-          je      .L176
-          .L150:
-          cmpl    32(%rcx), %r12d
-          jle     .L177
-          movq    24(%rcx), %rcx
-          testq   %rcx, %rcx
-          jne     .L150
-          .L176:
-          cmpq    $topology+8, %rbp
-          je      .L147
-          cmpl    32(%rbp), %r12d
-          jl      .L147
-          .L151:
-          movl    NUM_THREADS(%rip), %eax
-          cltd
-          idivl   NUM_NODES(%rip)
-          movl    %eax, %ecx
-          movl    %r14d, %eax
-          cltd
-          idivl   %ecx
-          cmpl    %eax, 36(%rbp)
-          je      .L154
-          movl    with_numa(%rip), %edx
-          testl   %edx, %edx
-          je      .L154
-          movl    %eax, %edi
-          call    _Z15migrate_to_nodei
-          .L154:
-          movl    $b, %edi
-          call    pthread_barrier_wait
-          leaq    (%rbx,%r13), %r8
-          cmpq    %r8, %rbx
-          jge     .L166
-          movq    COLS(%rip), %rdx
-          movq    w(%rip), %rcx
-          movq    mx(%rip), %r9
-          movq    v(%rip), %rdi
-          .p2align 4,,10
-          .p2align 3
-          .L156:
-          testq   %rdx, %rdx
-          jle     .L158
-          movq    (%r9,%rbx,8), %rsi
-          movss   (%rcx,%rbx,4), %xmm1
-          xorl    %eax, %eax
-          .p2align 4,,10
-          .p2align 3
-          .L157:
-          movss   (%rsi,%rax,4), %xmm0
-          mulss   (%rdi,%rax,4), %xmm0
-          addq    $1, %rax
-          cmpq    %rdx, %rax
-          addss   %xmm0, %xmm1
-          movss   %xmm1, (%rcx,%rbx,4)
-          jne     .L157
-          .L158:
-          addq    $1, %rbx
-          cmpq    %r8, %rbx
-          jne     .L156
-          .L166:
-          addq    $24, %rsp
-          .cfi_remember_state
-          .cfi_def_cfa_offset 56
-          xorl    %eax, %eax
-          popq    %rbx
-          .cfi_def_cfa_offset 48
-          popq    %rbp
-          .cfi_def_cfa_offset 40
-          popq    %r12
-          .cfi_def_cfa_offset 32
-          popq    %r13
-          .cfi_def_cfa_offset 24
-          popq    %r14
-          .cfi_def_cfa_offset 16
-          popq    %r15
-          .cfi_def_cfa_offset 8
-          ret
-          .L147:
-          .cfi_restore_state
-          movl    $40, %edi
-          movq    %rbp, %r15
-          call    _Znwm
-          leaq    32(%rax), %rdx
-          movl    %r12d, 32(%rax)
-          movl    $0, 36(%rax)
-          movq    %r15, %rsi
-          movl    $topology, %edi
-          movq    %rax, %rbp
-          call    _ZNSt8_Rb_treeIiSt4pairIKiiESt10_Select1stIS2_ESt4lessIiESaIS2_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS2_ERS1_
-          testq   %rdx, %rdx
-          je      .L178
-          testq   %rax, %rax
-          jne     .L163
-          cmpq    $topology+8, %rdx
-          je      .L163
-          xorl    %edi, %edi
-          movl    32(%rdx), %eax
-          cmpl    %eax, 32(%rbp)
-          setl    %dil
-          .L152:
-          movl    $topology+8, %ecx
-          movq    %rbp, %rsi
-          call    _ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
-          addq    $1, topology+40(%rip)
-          jmp     .L151
-          .L178:
-          movq    %rbp, %rdi
-          movq    %rax, 8(%rsp)
-          call    _ZdlPv
-          movq    8(%rsp), %rax
-          movq    %rax, %rbp
-          jmp     .L151
-          .L163:
-          movl    $1, %edi
-          jmp     .L152
-          .cfi_endproc
-          .LFE2410:
-          .size   _Z11multiply_fnPv, .-_Z11multiply_fnPv
-          .section        .text.unlikely
-          .LCOLDE15:
-          .text
-          .LHOTE15:
-          .section        .text.unlikely
-          .LCOLDB16:
-          .section        .text.startup
-          .LHOTB16:
-          .p2align 4,,15
-          .type   _GLOBAL__sub_I_ROWS, @function
-          _GLOBAL__sub_I_ROWS:
-          .LFB2882:
-          .cfi_startproc
-          subq    $8, %rsp
-          .cfi_def_cfa_offset 16
-          movl    $_ZStL8__ioinit, %edi
-          call    _ZNSt8ios_base4InitC1Ev
-          movl    $__dso_handle, %edx
-          movl    $_ZStL8__ioinit, %esi
-          movl    $_ZNSt8ios_base4InitD1Ev, %edi
-          call    __cxa_atexit
-          movl    $__dso_handle, %edx
-          movl    $topology, %esi
-          movl    $_ZNSt3mapIiiSt4lessIiESaISt4pairIKiiEEED1Ev, %edi
-          movl    $0, topology+8(%rip)
-          movq    $0, topology+16(%rip)
-          movq    $0, topology+40(%rip)
-          movq    $topology+8, topology+24(%rip)
-          movq    $topology+8, topology+32(%rip)
-          call    __cxa_atexit
-          movl    $0, topology_inverse+8(%rip)
-          movq    $0, topology_inverse+16(%rip)
-          movl    $__dso_handle, %edx
-          movq    $0, topology_inverse+40(%rip)
-          movq    $topology_inverse+8, topology_inverse+24(%rip)
-          movl    $topology_inverse, %esi
-          movq    $topology_inverse+8, topology_inverse+32(%rip)
-          movl    $_ZNSt3mapIiSt6vectorIiSaIiEESt4lessIiESaISt4pairIKiS2_EEED1Ev, %edi
-          addq    $8, %rsp
-          .cfi_def_cfa_offset 8
-          jmp     __cxa_atexit
-          .cfi_endproc
-          .LFE2882:
-          .size   _GLOBAL__sub_I_ROWS, .-_GLOBAL__sub_I_ROWS
-          .section        .text.unlikely
-          .LCOLDE16:
-          .section        .text.startup
-          .LHOTE16:
-          .section        .init_array,"aw"
-          .align 8
-          .quad   _GLOBAL__sub_I_ROWS
-          .globl  b
-          .bss
-          .align 32
-          .type   b, @object
-          .size   b, 32
-          b:
-          .zero   32
-          .globl  main_thread
-          .align 8
-          .type   main_thread, @object
-          .size   main_thread, 8
-          main_thread:
-          .zero   8
-          .globl  topology_inverse
-          .align 32
-          .type   topology_inverse, @object
-          .size   topology_inverse, 48
-          topology_inverse:
-          .zero   48
-          .globl  topology
-          .align 32
-          .type   topology, @object
-          .size   topology, 48
-          topology:
-          .zero   48
-          .globl  with_numa
-          .data
-          .align 4
-          .type   with_numa, @object
-          .size   with_numa, 4
-          with_numa:
-          .long   1
-          .globl  s
-          .bss
-          .align 8
-          .type   s, @object
-          .size   s, 8
-          s:
-          .zero   8
-          .globl  w
-          .align 8
-          .type   w, @object
-          .size   w, 8
-          w:
-          .zero   8
-          .globl  v
-          .align 8
-          .type   v, @object
-          .size   v, 8
-          v:
-          .zero   8
-          .globl  mx
-          .align 8
-          .type   mx, @object
-          .size   mx, 8
-          mx:
-          .zero   8
-          .globl  NUM_NODES
-          .data
-          .align 4
-          .type   NUM_NODES, @object
-          .size   NUM_NODES, 4
-          NUM_NODES:
-          .long   8
-          .globl  NUM_THREADS
-          .align 4
-          .type   NUM_THREADS, @object
-          .size   NUM_THREADS, 4
-          NUM_THREADS:
-          .long   64
-          .globl  COLS
-          .bss
-          .align 8
-          .type   COLS, @object
-          .size   COLS, 8
-          COLS:
-          .zero   8
-          .globl  ROWS
-          .align 8
-          .type   ROWS, @object
-          .size   ROWS, 8
-          ROWS:
-          .zero   8
-          .local  _ZStL8__ioinit
-          .comm   _ZStL8__ioinit,1,1
-          .hidden __dso_handle
-          .ident  "GCC: (GNU) 4.9.4"
-          .section        .note.GNU-stack,"",@progbits
+           828         rdtsc
+           829 # 0 "" 2
+           830 #NO_APP
+           831         salq    $32, %rdx
+           832         movl    %eax, %eax
+           833         orq     %rax, %rdx
+           834         cmpq    %r9, %rbx
+           835         movq    %rdx, %r11
+           836         jge     .L107
+           837         movq    COLS(%rip), %rsi
+           838         movq    w(%rip), %rdi
+           839         movq    mx(%rip), %r10
+           840         movq    v(%rip), %rax
+           841         .p2align 4,,10
+           842         .p2align 3
+           843 .L108:
+           844         testq   %rsi, %rsi
+           845         jle     .L110
+           846         movq    (%r10,%rbx,8), %r8
+           847         movss   (%rdi,%rbx,4), %xmm1
+           848         xorl    %ecx, %ecx
+           849         .p2align 4,,10
+           850         .p2align 3
+           851 .L109:
+           852         movss   (%r8,%rcx,4), %xmm0
+           853         mulss   (%rax,%rcx,4), %xmm0
+           854         addq    $1, %rcx
+           855         cmpq    %rsi, %rcx
+           856         addss   %xmm0, %xmm1
+           857         movss   %xmm1, (%rdi,%rbx,4)
+           858         jne     .L109
+           859 .L110:
+           860         addq    $1, %rbx
+           861         cmpq    %r9, %rbx
+           862         jne     .L108
+           863 .L107:
+           864         movl    $16, %ecx
+           865 #APP
+           866 # 37 "matrix_multiplication.cpp" 1
+           867         rdtsc
+
 #+END_SRC
 * Troubleshooting
 ** GCC version is 4.8 not enough to support OpenMP 4.0 for proc_bind functionality
