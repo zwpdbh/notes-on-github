@@ -146,7 +146,7 @@
        
     The difference between numa_miss and numa_hit and local_node and foreign_node is that the first two count hit or miss for the NUMA policy. The latter count if the allocation was on the same node as the requesting thread.
 * Use pthread to do the experiment
-** Test serial version of code for memory access time
+** Serial version of code for memory access time
 *** code to measure access time
 #+BEGIN_SRC c
   #include <iostream>
@@ -286,7 +286,7 @@ size = 12800
 
 It is clear to see the effect of remote access is slower.
   
-** Test parallel version of code for memory access and multiplication with vector
+** Parallel version of code for memory access and multiplication with vector
 *** code with parallel access and multiplication
 #+BEGIN_SRC c
   //
