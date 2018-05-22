@@ -1994,45 +1994,51 @@ In general, data parallelisation in the case of matrix time matrix could not be 
 *** Code block which fixs the above 
 - When generating pthreads, generate 63 instead of 64, and use main thread to do multiplication as well
   #+BEGIN_SRC c
+    pthread_barrier_destroy(&b);
     free(pthreads);
-    pthreads = (pInfo*) emalloc(sizeof(*pthreads) * (NUM_THREADS - 1));
+
+    pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
     for (int i = 1; i < NUM_THREADS; i++) {
-      pthreads[i - 1].thread_id = i;
+      pthreads[i].thread_id = i;
+      // for the case in which rows < NUM_THREADS
       if (ROWS / NUM_THREADS == 0) {
-        pthreads[i - 1].from = i * 1;
-        pthreads[i - 1].job_size = 1;
+        pthreads[i].from = i * 1;
+        pthreads[i].job_size = 1;
       } else {
-        pthreads[i - 1].from  = i * (ROWS / NUM_THREADS);
-        pthreads[i - 1].job_size = ROWS / NUM_THREADS;
+        pthreads[i].from  = i * (ROWS / NUM_THREADS);
+        pthreads[i].job_size = ROWS / NUM_THREADS;
       }
 
       if (i == NUM_THREADS - 1) {
-        pthreads[i - 1].job_size += (ROWS % NUM_THREADS);
+        pthreads[i].job_size += (ROWS % NUM_THREADS);
       }
           
-      err = pthread_create(&pthreads[i - 1].thread, NULL, multiply_fn, (void*)&pthreads[i - 1]);
-      cpu_set_t cpuset;
-      CPU_ZERO(&cpuset);
-      CPU_SET(0, &cpuset);
-      pthread_t tid = pthread_self();
-      pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+      err = pthread_create(&pthreads[i].thread, NULL, multiply_fn, (void*)&pthreads[i]);
 
       if (err != 0) {
         printf("error during thread creation, exit...\n");
         exit(-1);
       }
      }
-       
-    pthread_barrier_wait(&b);
-    start = tick();
-    for (long k = 0; k < ROWS / NUM_THREADS; k++) {
-      for (long j = 0; j < COLS; j++) {
-        w[k] += (mx[k][j] * v[j]);
+        
+    // configure main_threads
+    pthreads[0].thread_id = 0;
+    pthreads[0].from = 0;
+    pthreads[0].job_size = ROWS / NUM_THREADS;
+    multiply_fn((void*)&pthreads[0]);
+        
+    construct_barrier(pthreads, NUM_THREADS);
+    int index = 0;
+    long max = 0;
+    for ( int i = 0; i < NUM_THREADS; i++) {
+      printf("thread_%d takes: %ld\n", i, time_records[i]);
+      if (time_records[i] > max) {
+        index = i;
+        max = time_records[i];
       }
      }
-    end = tick();
-
-    time_records[0] = end - start;
+     
+    printf("thread_%d takes longest, use: %ld\n", index, max);
   #+END_SRC
 
 
@@ -2041,24 +2047,23 @@ In general, data parallelisation in the case of matrix time matrix could not be 
   #+BEGIN_SRC c
     void* multiply_fn(void* arg) {
       pInfo info = *(pInfo*)arg;
-
+      //  printf("do mulitplication in thread_%d\n", info.thread_id);
       cpu_set_t cpuset;
       CPU_ZERO(&cpuset);
       CPU_SET(distribute_scheme[info.thread_id], &cpuset);
       pthread_t tid = pthread_self();
       pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
       //  printf("thread_%d is executing on cpu %d\n", info.thread_id, sched_getcpu());
-      pthread_barrier_wait(&b);  
-
+      
       auto start = tick();
-      for (long k = info.from; k < info.from + info.job_size; k++) {
+      for (long k = info.from; k < (info.from + info.job_size); k++) {
         for (long j = 0; j < COLS; j++) {
           w[k] += (mx[k][j] * v[j]);
-          //      w[k] += (*(*(mx + k) +j) * v[j]);
         }
       }
       auto end = tick();
-      printf("job_size = %ld, thread_%d takes %ld\n", info.job_size, info.thread_id, end - start);
+
+      //  printf("job_size = %ld, thread_%d takes %ld\n", info.job_size, info.thread_id, end - start);
       time_records[info.thread_id] = end - start;
 
       return (void *)0;
