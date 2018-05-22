@@ -315,8 +315,10 @@ It is clear to see the effect of remote access is slower.
   float* v = nullptr;
   float* w = nullptr;
   long s = 0;
+  long* time_records;
   int with_numa = 1;
   map<int, int> topology;
+  map<int, int> distribute_scheme;
   map<int, vector<int> > topology_inverse;
 
   pthread_t main_thread;
@@ -353,7 +355,6 @@ It is clear to see the effect of remote access is slower.
   void construct_barrier(pInfo* pthreads, int n_threads);
   void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse);
   void migrate_to_node(int node_index);
-
 
   int main(int argc, char* argv[]) {
     if (argc != 4) {
@@ -471,7 +472,12 @@ It is clear to see the effect of remote access is slower.
       auto done = std::chrono::high_resolution_clock::now();
       cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
+
+
     } else if (with_numa == 2) {
+
+
+      time_records = (long *)emalloc(sizeof(long) * NUM_THREADS);
       auto started = std::chrono::high_resolution_clock::now();
       printf("===Allocate mx with %ld * %ld, WITH NUMA awareness:\n", ROWS, COLS);
       mx = (float**)emalloc(sizeof(float*) * ROWS);
@@ -525,7 +531,14 @@ It is clear to see the effect of remote access is slower.
         w[i] = 0;
       }
 
-      for (int i = 0; i < NUM_THREADS; i++) {
+
+      pthread_barrier_destroy(&b);
+      free(pthreads);
+
+      pthreads = (pInfo*) emalloc(sizeof(*pthreads) * NUM_THREADS);
+      for (int i = 1; i < NUM_THREADS; i++) {
+        pthreads[i].thread_id = i;
+        // for the case in which rows < NUM_THREADS
         if (ROWS / NUM_THREADS == 0) {
           pthreads[i].from = i * 1;
           pthreads[i].job_size = 1;
@@ -537,18 +550,33 @@ It is clear to see the effect of remote access is slower.
         if (i == NUM_THREADS - 1) {
           pthreads[i].job_size += (ROWS % NUM_THREADS);
         }
+        
         err = pthread_create(&pthreads[i].thread, NULL, multiply_fn, (void*)&pthreads[i]);
+
         if (err != 0) {
           printf("error during thread creation, exit...\n");
           exit(-1);
         }
       }
-
-      pthread_barrier_wait(&b);
-      start = tick();
+      
+      // configure main_threads
+      pthreads[0].thread_id = 0;
+      pthreads[0].from = 0;
+      pthreads[0].job_size = ROWS / NUM_THREADS;
+      multiply_fn((void*)&pthreads[0]);
+      
       construct_barrier(pthreads, NUM_THREADS);
-      end = tick();
-      printf("parallel multiplication with matrix shape ROWS * COLS, use: %lld\n", end - start);
+      int index = 0;
+      long max = 0;
+      for ( int i = 0; i < NUM_THREADS; i++) {
+        printf("thread_%d takes: %ld\n", i, time_records[i]);
+        if (time_records[i] > max) {
+          index = i;
+          max = time_records[i];
+        }
+      }
+   
+      printf("thread_%d takes longest, use: %ld\n", index, max);
 
       int cpu_num = sched_getcpu();
       if (cpu_num) {
@@ -562,10 +590,12 @@ It is clear to see the effect of remote access is slower.
       free(pthreads);
       free(v);
       free(w);
-      pthread_barrier_destroy(&b);
+      free(time_records);
       auto done = std::chrono::high_resolution_clock::now();
       cout << "total execution time: " << std::chrono::duration_cast<std::chrono::duration<double> >(done - started).count() << " seconds" << endl;
       exit(0);
+
+
     } else {
       auto started = std::chrono::high_resolution_clock::now();
       mx = (float**)emalloc(sizeof(float*) * NUM_NODES);
@@ -807,7 +837,11 @@ It is clear to see the effect of remote access is slower.
   void construct_barrier(pInfo* pthreads, int n_threads) {
     int err;
     void* status;
-    for (int i = 0; i < n_threads; i++) {
+    int index = 0;
+    if (with_numa == 2) {
+      index = 1;
+    }
+    for (int i = index; i < n_threads; i++) {
       if (main_thread == pthreads[i].thread) {
         printf("one of the worker threads is main thread !!!\n\n\n");
       }
@@ -815,13 +849,12 @@ It is clear to see the effect of remote access is slower.
       if (err) {
         printf("error, return code from pthread_join() is %d\n", *(int*)status);
       }
-      //    printf("thread %d is joint\n", i);
     }
   }
 
 
   void initMap(map<int, int> &topology, map<int, vector<int> > &topology_inverse) {
-
+    int thread_id = 0;
     vector<int> index_set = {0, 32, 2, 34, 3, 35, 1, 33};
     for (int node = 0 ; node < index_set.size(); node++) {
       vector<int> cpus_on_node;
@@ -829,6 +862,8 @@ It is clear to see the effect of remote access is slower.
         //      printf("make pair: %d <=> %d\n", node, cpu);
         topology.insert(make_pair(cpu, node));
         cpus_on_node.push_back(cpu);
+        distribute_scheme.insert(make_pair(thread_id, cpu));
+        thread_id += 1;
       }
       topology_inverse.insert(make_pair(node, cpus_on_node));
     }
@@ -903,23 +938,25 @@ It is clear to see the effect of remote access is slower.
 
   void* multiply_fn(void* arg) {
     pInfo info = *(pInfo*)arg;
-
-    int sched_cpu = sched_getcpu();
-    int current_on_node = topology[sched_cpu];
+    //  printf("do mulitplication in thread_%d\n", info.thread_id);
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(distribute_scheme[info.thread_id], &cpuset);
+    pthread_t tid = pthread_self();
+    pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpuset);
+    //  printf("thread_%d is executing on cpu %d\n", info.thread_id, sched_getcpu());
     
-    int node_index = info.thread_id / (NUM_THREADS / NUM_NODES);
-
-    if(with_numa && node_index != current_on_node) {
-      migrate_to_node(node_index);
-    }
-
-    pthread_barrier_wait(&b);  
-    for (long k = info.from; k < info.from + info.job_size; k++) {
+    auto start = tick();
+    for (long k = info.from; k < (info.from + info.job_size); k++) {
       for (long j = 0; j < COLS; j++) {
         w[k] += (mx[k][j] * v[j]);
-        //      w[k] += (*(*(mx + k) +j) * v[j]);
       }
     }
+    auto end = tick();
+
+    //  printf("job_size = %ld, thread_%d takes %ld\n", info.job_size, info.thread_id, end - start);
+    time_records[info.thread_id] = end - start;
+
     return (void *)0;
   }
 
@@ -937,6 +974,7 @@ It is clear to see the effect of remote access is slower.
     //  int current_on_node = topology[sched_cpu];
     //  printf("thread_id = %d, on cpu %d, on node %d\n", (unsigned long)info.thread_id, sched_cpu, current_on_node);
   }
+
 #+END_SRC
 
 *** Execution record
